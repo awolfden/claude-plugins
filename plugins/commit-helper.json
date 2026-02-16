@@ -1,0 +1,35 @@
+{
+  "id": "commit-helper",
+  "name": "Commit Helper",
+  "description": "Generates conventional commit messages based on staged changes with smart categorization",
+  "longDescription": "Commit Helper analyzes your staged git changes and generates well-formatted conventional commit messages. It automatically detects the type of change (feat, fix, docs, refactor, etc.) and creates descriptive commit messages following best practices.\n\n## Usage\n\nSimply run `/commit` after staging your changes, and the skill will analyze the diff and suggest an appropriate commit message.\n\n## Features\n\n- Automatic change type detection\n- Conventional commit format\n- Multi-file change summarization\n- Breaking change detection",
+  "version": "1.0.0",
+  "author": {
+    "name": "Claude Plugins",
+    "github": "awolfden"
+  },
+  "type": "skill",
+  "categories": ["git", "productivity"],
+  "tags": ["git", "commit", "conventional-commits", "automation"],
+  "repository": "https://github.com/awolfden/claude-plugins",
+  "installation": {
+    "type": "settings-json",
+    "config": {
+      "skills": {
+        "commit": {
+          "command": "/commit",
+          "description": "Generate a conventional commit message for staged changes",
+          "prompt": "Analyze the staged git changes and generate a conventional commit message. Use the format: <type>(<scope>): <description>. Types: feat, fix, docs, style, refactor, test, chore."
+        }
+      }
+    },
+    "instructions": "Add the following to your Claude Code settings.json under the 'skills' key"
+  },
+  "requirements": {
+    "dependencies": ["git"],
+    "platforms": ["macos", "linux", "windows"]
+  },
+  "license": "MIT",
+  "createdAt": "2025-02-13",
+  "updatedAt": "2025-02-13"
+}

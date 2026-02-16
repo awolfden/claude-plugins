@@ -1,0 +1,34 @@
+{
+  "id": "doc-generator",
+  "name": "Doc Generator",
+  "description": "Automatically generates documentation for functions, classes, and modules with JSDoc/docstring support",
+  "longDescription": "Doc Generator creates comprehensive documentation for your code. It analyzes functions, classes, and modules to generate accurate JSDoc comments, Python docstrings, or documentation in your preferred format.\n\n## Usage\n\nRun `/docs <file>` to generate documentation for a file, or `/docs` in a project to generate a documentation overview.\n\n## Features\n\n- Multi-language support (JavaScript, TypeScript, Python, Go)\n- JSDoc and docstring generation\n- README generation\n- API documentation\n- Example code generation",
+  "version": "1.0.0",
+  "author": {
+    "name": "Claude Plugins",
+    "github": "awolfden"
+  },
+  "type": "skill",
+  "categories": ["documentation", "development"],
+  "tags": ["documentation", "jsdoc", "docstrings", "readme", "api-docs"],
+  "repository": "https://github.com/awolfden/claude-plugins",
+  "installation": {
+    "type": "settings-json",
+    "config": {
+      "skills": {
+        "docs": {
+          "command": "/docs",
+          "description": "Generate documentation for code",
+          "prompt": "Analyze the specified code and generate comprehensive documentation including function/method descriptions, parameter types, return values, and usage examples."
+        }
+      }
+    },
+    "instructions": "Add the following to your Claude Code settings.json under the 'skills' key"
+  },
+  "requirements": {
+    "platforms": ["macos", "linux", "windows"]
+  },
+  "license": "MIT",
+  "createdAt": "2025-02-13",
+  "updatedAt": "2025-02-13"
+}

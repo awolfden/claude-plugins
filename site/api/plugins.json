@@ -1,0 +1,292 @@
+{
+  "version": "1.0.0",
+  "generatedAt": "2026-02-16T20:56:42.514Z",
+  "count": 7,
+  "plugins": [
+    {
+      "id": "brand-demo",
+      "name": "brand-demo",
+      "description": "Brand the SE demo app for a prospect company from their website URL",
+      "version": "0.1.0",
+      "author": {
+        "name": "Adam Wolfman",
+        "github": "awolfden"
+      },
+      "type": "skill",
+      "categories": [
+        "development"
+      ],
+      "tags": [
+        "brand-demo"
+      ],
+      "repository": "https://github.com/awolfden/claude-plugins",
+      "installation": {
+        "type": "settings-json",
+        "instructions": "Install the brand-demo plugin from the marketplace"
+      },
+      "requirements": {
+        "platforms": [
+          "macos",
+          "linux",
+          "windows"
+        ]
+      },
+      "license": "MIT",
+      "createdAt": "2026-02-16",
+      "updatedAt": "2026-02-16"
+    },
+    {
+      "id": "code-reviewer",
+      "name": "Code Reviewer",
+      "description": "Performs comprehensive code reviews with security analysis, best practices, and improvement suggestions",
+      "longDescription": "Code Reviewer provides thorough code review capabilities directly in Claude Code. It analyzes your code for security vulnerabilities, adherence to best practices, potential bugs, and suggests improvements.\n\n## Usage\n\nRun `/review` to review staged changes, or `/review <file>` to review a specific file.\n\n## Features\n\n- Security vulnerability detection (OWASP Top 10)\n- Best practices analysis\n- Performance optimization suggestions\n- Code style recommendations\n- Complexity analysis",
+      "version": "1.0.0",
+      "author": {
+        "name": "Claude Plugins",
+        "github": "awolfden"
+      },
+      "type": "skill",
+      "categories": [
+        "code-quality",
+        "development"
+      ],
+      "tags": [
+        "code-review",
+        "security",
+        "best-practices",
+        "linting"
+      ],
+      "repository": "https://github.com/awolfden/claude-plugins",
+      "installation": {
+        "type": "settings-json",
+        "config": {
+          "skills": {
+            "review": {
+              "command": "/review",
+              "description": "Perform a comprehensive code review",
+              "prompt": "Review the specified code for security vulnerabilities, bugs, best practices violations, and potential improvements. Provide actionable feedback organized by severity."
+            }
+          }
+        },
+        "instructions": "Add the following to your Claude Code settings.json under the 'skills' key"
+      },
+      "requirements": {
+        "platforms": [
+          "macos",
+          "linux",
+          "windows"
+        ]
+      },
+      "license": "MIT",
+      "createdAt": "2025-02-13",
+      "updatedAt": "2025-02-13"
+    },
+    {
+      "id": "commit-helper",
+      "name": "Commit Helper",
+      "description": "Generates conventional commit messages based on staged changes with smart categorization",
+      "longDescription": "Commit Helper analyzes your staged git changes and generates well-formatted conventional commit messages. It automatically detects the type of change (feat, fix, docs, refactor, etc.) and creates descriptive commit messages following best practices.\n\n## Usage\n\nSimply run `/commit` after staging your changes, and the skill will analyze the diff and suggest an appropriate commit message.\n\n## Features\n\n- Automatic change type detection\n- Conventional commit format\n- Multi-file change summarization\n- Breaking change detection",
+      "version": "1.0.0",
+      "author": {
+        "name": "Claude Plugins",
+        "github": "awolfden"
+      },
+      "type": "skill",
+      "categories": [
+        "git",
+        "productivity"
+      ],
+      "tags": [
+        "git",
+        "commit",
+        "conventional-commits",
+        "automation"
+      ],
+      "repository": "https://github.com/awolfden/claude-plugins",
+      "installation": {
+        "type": "settings-json",
+        "config": {
+          "skills": {
+            "commit": {
+              "command": "/commit",
+              "description": "Generate a conventional commit message for staged changes",
+              "prompt": "Analyze the staged git changes and generate a conventional commit message. Use the format: <type>(<scope>): <description>. Types: feat, fix, docs, style, refactor, test, chore."
+            }
+          }
+        },
+        "instructions": "Add the following to your Claude Code settings.json under the 'skills' key"
+      },
+      "requirements": {
+        "dependencies": [
+          "git"
+        ],
+        "platforms": [
+          "macos",
+          "linux",
+          "windows"
+        ]
+      },
+      "license": "MIT",
+      "createdAt": "2025-02-13",
+      "updatedAt": "2025-02-13"
+    },
+    {
+      "id": "customer-voice",
+      "name": "customer-voice",
+      "description": "Draft customer responses in your voice with optional codebase and docs research",
+      "version": "0.1.0",
+      "author": {
+        "name": "Adam Wolfman",
+        "github": "awolfden"
+      },
+      "type": "skill",
+      "categories": [
+        "development"
+      ],
+      "tags": [
+        "customer-voice"
+      ],
+      "repository": "https://github.com/awolfden/claude-plugins",
+      "installation": {
+        "type": "settings-json",
+        "instructions": "Install the customer-voice plugin from the marketplace"
+      },
+      "requirements": {
+        "platforms": [
+          "macos",
+          "linux",
+          "windows"
+        ]
+      },
+      "license": "MIT",
+      "createdAt": "2026-02-16",
+      "updatedAt": "2026-02-16"
+    },
+    {
+      "id": "doc-generator",
+      "name": "Doc Generator",
+      "description": "Automatically generates documentation for functions, classes, and modules with JSDoc/docstring support",
+      "longDescription": "Doc Generator creates comprehensive documentation for your code. It analyzes functions, classes, and modules to generate accurate JSDoc comments, Python docstrings, or documentation in your preferred format.\n\n## Usage\n\nRun `/docs <file>` to generate documentation for a file, or `/docs` in a project to generate a documentation overview.\n\n## Features\n\n- Multi-language support (JavaScript, TypeScript, Python, Go)\n- JSDoc and docstring generation\n- README generation\n- API documentation\n- Example code generation",
+      "version": "1.0.0",
+      "author": {
+        "name": "Claude Plugins",
+        "github": "awolfden"
+      },
+      "type": "skill",
+      "categories": [
+        "documentation",
+        "development"
+      ],
+      "tags": [
+        "documentation",
+        "jsdoc",
+        "docstrings",
+        "readme",
+        "api-docs"
+      ],
+      "repository": "https://github.com/awolfden/claude-plugins",
+      "installation": {
+        "type": "settings-json",
+        "config": {
+          "skills": {
+            "docs": {
+              "command": "/docs",
+              "description": "Generate documentation for code",
+              "prompt": "Analyze the specified code and generate comprehensive documentation including function/method descriptions, parameter types, return values, and usage examples."
+            }
+          }
+        },
+        "instructions": "Add the following to your Claude Code settings.json under the 'skills' key"
+      },
+      "requirements": {
+        "platforms": [
+          "macos",
+          "linux",
+          "windows"
+        ]
+      },
+      "license": "MIT",
+      "createdAt": "2025-02-13",
+      "updatedAt": "2025-02-13"
+    },
+    {
+      "id": "test-runner",
+      "name": "Smart Test Runner",
+      "description": "Intelligently runs relevant tests based on your code changes and provides detailed failure analysis",
+      "longDescription": "Smart Test Runner analyzes your recent code changes to determine which tests are most relevant and runs them automatically. When tests fail, it provides detailed analysis and suggestions for fixes.\n\n## Usage\n\nRun `/test` to automatically detect and run relevant tests, or `/test <pattern>` to run specific tests.\n\n## Features\n\n- Automatic test detection based on changed files\n- Support for multiple test frameworks (Jest, Vitest, pytest, Go test)\n- Detailed failure analysis with fix suggestions\n- Coverage reporting integration",
+      "version": "1.0.0",
+      "author": {
+        "name": "Claude Plugins",
+        "github": "awolfden"
+      },
+      "type": "skill",
+      "categories": [
+        "testing",
+        "development"
+      ],
+      "tags": [
+        "testing",
+        "jest",
+        "vitest",
+        "pytest",
+        "automation"
+      ],
+      "repository": "https://github.com/awolfden/claude-plugins",
+      "installation": {
+        "type": "settings-json",
+        "config": {
+          "skills": {
+            "test": {
+              "command": "/test",
+              "description": "Run relevant tests for recent changes",
+              "prompt": "Analyze recent code changes, identify relevant test files, and run appropriate tests. Provide detailed analysis of any failures with suggestions for fixes."
+            }
+          }
+        },
+        "instructions": "Add the following to your Claude Code settings.json under the 'skills' key"
+      },
+      "requirements": {
+        "platforms": [
+          "macos",
+          "linux",
+          "windows"
+        ]
+      },
+      "license": "MIT",
+      "createdAt": "2025-02-13",
+      "updatedAt": "2025-02-13"
+    },
+    {
+      "id": "workos-brand",
+      "name": "workos-brand",
+      "description": "Apply WorkOS design system branding and components when building UI",
+      "version": "0.1.0",
+      "author": {
+        "name": "Adam Wolfman",
+        "github": "awolfden"
+      },
+      "type": "skill",
+      "categories": [
+        "development"
+      ],
+      "tags": [
+        "workos-brand"
+      ],
+      "repository": "https://github.com/awolfden/claude-plugins",
+      "installation": {
+        "type": "settings-json",
+        "instructions": "Install the workos-brand plugin from the marketplace"
+      },
+      "requirements": {
+        "platforms": [
+          "macos",
+          "linux",
+          "windows"
+        ]
+      },
+      "license": "MIT",
+      "createdAt": "2026-02-16",
+      "updatedAt": "2026-02-16"
+    }
+  ]
+}

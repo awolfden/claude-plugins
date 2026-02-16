@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claude Plugins Marketplace</title>
+  <meta name="description" content="Discover and install plugins, skills, and extensions for Claude Code">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="header">
+    <div class="container">
+      <div class="header-content">
+        <div class="logo">
+          <span class="logo-icon">⚡</span>
+          <h1>Claude Plugins</h1>
+        </div>
+        <nav class="nav">
+          <a href="#plugins">Browse</a>
+          <a href="submit.html">Submit Plugin</a>
+          <a href="https://github.com/awolfden/claude-plugins" target="_blank">GitHub</a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <h2>Extend Claude Code with powerful plugins</h2>
+        <p>Discover skills, hooks, and integrations to supercharge your workflow</p>
+        <div class="search-container">
+          <input
+            type="text"
+            id="search"
+            placeholder="Search plugins..."
+            aria-label="Search plugins"
+          >
+          <span class="search-icon">🔍</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="filters" id="plugins">
+      <div class="container">
+        <div class="filter-bar">
+          <div class="filter-group">
+            <label>Type:</label>
+            <select id="filter-type">
+              <option value="">All Types</option>
+              <option value="skill">Skills</option>
+              <option value="hook">Hooks</option>
+              <option value="mcp-server">MCP Servers</option>
+              <option value="prompt-template">Prompt Templates</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Category:</label>
+            <select id="filter-category">
+              <option value="">All Categories</option>
+              <option value="productivity">Productivity</option>
+              <option value="development">Development</option>
+              <option value="git">Git</option>
+              <option value="testing">Testing</option>
+              <option value="documentation">Documentation</option>
+              <option value="code-quality">Code Quality</option>
+              <option value="devops">DevOps</option>
+              <option value="integrations">Integrations</option>
+              <option value="utilities">Utilities</option>
+              <option value="ai">AI</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <span id="result-count">Loading...</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="plugins-grid">
+      <div class="container">
+        <div id="plugins-container" class="grid">
+          <div class="loading">Loading plugins...</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="plugin-modal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <button class="modal-close" aria-label="Close">&times;</button>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <p>Claude Plugins Marketplace &middot; <a href="https://github.com/awolfden/claude-plugins">Contribute on GitHub</a></p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

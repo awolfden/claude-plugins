@@ -1,0 +1,41 @@
+{
+  "name": "awolfden-plugins",
+  "owner": {
+    "name": "Adam Wolfman",
+    "github": "awolfden"
+  },
+  "version": "1.0.0",
+  "description": "Claude Code plugins for code review, commits, documentation, testing, and customer communication",
+  "plugins": [
+    {
+      "name": "code-reviewer",
+      "source": "./plugins/code-reviewer",
+      "description": "Performs comprehensive code reviews with security analysis, best practices, and improvement suggestions",
+      "version": "1.0.0"
+    },
+    {
+      "name": "commit-helper",
+      "source": "./plugins/commit-helper",
+      "description": "Generates conventional commit messages based on staged changes with smart categorization",
+      "version": "1.0.0"
+    },
+    {
+      "name": "doc-generator",
+      "source": "./plugins/doc-generator",
+      "description": "Automatically generates documentation for functions, classes, and modules",
+      "version": "1.0.0"
+    },
+    {
+      "name": "test-runner",
+      "source": "./plugins/test-runner",
+      "description": "Intelligently runs relevant tests based on code changes and provides failure analysis",
+      "version": "1.0.0"
+    },
+    {
+      "name": "brand-demo",
+      "source": "./plugins/brand-demo",
+      "description": "Brand the SE demo app for a prospect company from their website URL",
+      "version": "0.1.0"
+    }
+  ]
+}

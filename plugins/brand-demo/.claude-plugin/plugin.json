@@ -1,0 +1,10 @@
+{
+  "name": "brand-demo",
+  "version": "0.1.0",
+  "description": "Brand the SE demo app for a prospect company from their website URL",
+  "author": {
+    "name": "Adam Wolfman",
+    "github": "awolfden"
+  },
+  "keywords": ["branding", "demo", "workos", "sales-engineering"]
+}

@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Submit Plugin - Claude Plugins Marketplace</title>
+  <meta name="description" content="Submit your plugin to the Claude Plugins Marketplace">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .submit-page {
+      padding: 60px 0;
+    }
+
+    .submit-header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    .submit-header h2 {
+      font-size: 32px;
+      margin-bottom: 12px;
+    }
+
+    .submit-header p {
+      color: var(--color-text-secondary);
+      font-size: 18px;
+    }
+
+    .submit-steps {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .step {
+      background: var(--color-bg-secondary);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 32px;
+      margin-bottom: 24px;
+    }
+
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .step-number {
+      width: 36px;
+      height: 36px;
+      background: var(--color-accent);
+      color: var(--color-bg);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 18px;
+    }
+
+    .step-header h3 {
+      font-size: 20px;
+    }
+
+    .step-content {
+      margin-left: 52px;
+      color: var(--color-text-secondary);
+    }
+
+    .step-content p {
+      margin-bottom: 12px;
+    }
+
+    .code-block {
+      background: var(--color-bg);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin: 16px 0;
+      overflow-x: auto;
+    }
+
+    .code-block pre {
+      font-family: 'SF Mono', Monaco, Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    .cta-buttons {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      margin-top: 48px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 28px;
+      border-radius: var(--radius);
+      font-size: 16px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--color-accent);
+      color: var(--color-bg);
+    }
+
+    .btn-primary:hover {
+      background: var(--color-accent-hover);
+      text-decoration: none;
+    }
+
+    .btn-secondary {
+      background: var(--color-bg-tertiary);
+      color: var(--color-text);
+      border: 1px solid var(--color-border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--color-border);
+      text-decoration: none;
+    }
+
+    .template-section {
+      margin-top: 48px;
+    }
+
+    .template-section h3 {
+      font-size: 24px;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="container">
+      <div class="header-content">
+        <a href="index.html" class="logo">
+          <span class="logo-icon">⚡</span>
+          <h1>Claude Plugins</h1>
+        </a>
+        <nav class="nav">
+          <a href="index.html">Browse</a>
+          <a href="submit.html">Submit Plugin</a>
+          <a href="https://github.com/awolfden/claude-plugins" target="_blank">GitHub</a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="submit-page">
+    <div class="container">
+      <div class="submit-header">
+        <h2>Submit Your Plugin</h2>
+        <p>Share your Claude Code skills, hooks, and integrations with the community</p>
+      </div>
+
+      <div class="submit-steps">
+        <div class="step">
+          <div class="step-header">
+            <span class="step-number">1</span>
+            <h3>Fork the Repository</h3>
+          </div>
+          <div class="step-content">
+            <p>Start by forking the Claude Plugins repository on GitHub:</p>
+            <div class="code-block">
+              <pre>git clone https://github.com/YOUR_USERNAME/claude-plugins.git
+cd claude-plugins</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-header">
+            <span class="step-number">2</span>
+            <h3>Create Your Plugin File</h3>
+          </div>
+          <div class="step-content">
+            <p>Create a new JSON file in the <code>plugins/</code> directory with your plugin metadata:</p>
+            <div class="code-block">
+              <pre>plugins/your-plugin-name.json</pre>
+            </div>
+            <p>Use the template below as a starting point. The filename should match your plugin's ID.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-header">
+            <span class="step-number">3</span>
+            <h3>Validate Your Plugin</h3>
+          </div>
+          <div class="step-content">
+            <p>Run the validation script to ensure your plugin meets the schema requirements:</p>
+            <div class="code-block">
+              <pre>npm run validate</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-header">
+            <span class="step-number">4</span>
+            <h3>Submit a Pull Request</h3>
+          </div>
+          <div class="step-content">
+            <p>Commit your changes and submit a pull request to the main repository. Include:</p>
+            <ul style="margin-left: 20px; margin-top: 8px;">
+              <li>A clear description of what your plugin does</li>
+              <li>Any dependencies or requirements</li>
+              <li>Example usage (if applicable)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="cta-buttons">
+        <a href="https://github.com/awolfden/claude-plugins/fork" class="btn btn-primary" target="_blank">
+          Fork on GitHub
+        </a>
+        <a href="https://github.com/awolfden/claude-plugins/blob/main/CONTRIBUTING.md" class="btn btn-secondary" target="_blank">
+          Read Full Guide
+        </a>
+      </div>
+
+      <div class="template-section">
+        <h3>Plugin Template</h3>
+        <div class="code-block">
+          <pre>{
+  "id": "your-plugin-id",
+  "name": "Your Plugin Name",
+  "description": "A brief description of what your plugin does (10-500 chars)",
+  "longDescription": "A detailed description with usage examples...",
+  "version": "1.0.0",
+  "author": {
+    "name": "Your Name",
+    "github": "your-github-username"
+  },
+  "type": "skill",
+  "categories": ["productivity", "development"],
+  "tags": ["tag1", "tag2"],
+  "repository": "https://github.com/username/repo",
+  "installation": {
+    "type": "settings-json",
+    "config": {
+      "skills": {
+        "your-command": {
+          "command": "/your-command",
+          "description": "What the command does",
+          "prompt": "The prompt that powers this skill"
+        }
+      }
+    },
+    "instructions": "Add the config above to your Claude Code settings.json"
+  },
+  "requirements": {
+    "dependencies": [],
+    "platforms": ["macos", "linux", "windows"]
+  },
+  "license": "MIT",
+  "createdAt": "2025-02-13",
+  "updatedAt": "2025-02-13"
+}</pre>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <p>Claude Plugins Marketplace &middot; <a href="https://github.com/awolfden/claude-plugins">Contribute on GitHub</a></p>
+    </div>
+  </footer>
+</body>
+</html>

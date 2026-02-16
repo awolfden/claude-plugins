@@ -1,0 +1,10 @@
+{
+  "name": "doc-generator",
+  "version": "1.0.0",
+  "description": "Automatically generates documentation for functions, classes, and modules with JSDoc/docstring support",
+  "author": {
+    "name": "Adam Wolfman",
+    "github": "awolfden"
+  },
+  "keywords": ["documentation", "jsdoc", "docstrings", "readme", "api-docs"]
+}

@@ -1,0 +1,34 @@
+{
+  "id": "test-runner",
+  "name": "Smart Test Runner",
+  "description": "Intelligently runs relevant tests based on your code changes and provides detailed failure analysis",
+  "longDescription": "Smart Test Runner analyzes your recent code changes to determine which tests are most relevant and runs them automatically. When tests fail, it provides detailed analysis and suggestions for fixes.\n\n## Usage\n\nRun `/test` to automatically detect and run relevant tests, or `/test <pattern>` to run specific tests.\n\n## Features\n\n- Automatic test detection based on changed files\n- Support for multiple test frameworks (Jest, Vitest, pytest, Go test)\n- Detailed failure analysis with fix suggestions\n- Coverage reporting integration",
+  "version": "1.0.0",
+  "author": {
+    "name": "Claude Plugins",
+    "github": "awolfden"
+  },
+  "type": "skill",
+  "categories": ["testing", "development"],
+  "tags": ["testing", "jest", "vitest", "pytest", "automation"],
+  "repository": "https://github.com/awolfden/claude-plugins",
+  "installation": {
+    "type": "settings-json",
+    "config": {
+      "skills": {
+        "test": {
+          "command": "/test",
+          "description": "Run relevant tests for recent changes",
+          "prompt": "Analyze recent code changes, identify relevant test files, and run appropriate tests. Provide detailed analysis of any failures with suggestions for fixes."
+        }
+      }
+    },
+    "instructions": "Add the following to your Claude Code settings.json under the 'skills' key"
+  },
+  "requirements": {
+    "platforms": ["macos", "linux", "windows"]
+  },
+  "license": "MIT",
+  "createdAt": "2025-02-13",
+  "updatedAt": "2025-02-13"
+}

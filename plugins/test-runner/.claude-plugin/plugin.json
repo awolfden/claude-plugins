@@ -1,0 +1,10 @@
+{
+  "name": "test-runner",
+  "version": "1.0.0",
+  "description": "Intelligently runs relevant tests based on your code changes and provides detailed failure analysis",
+  "author": {
+    "name": "Adam Wolfman",
+    "github": "awolfden"
+  },
+  "keywords": ["testing", "jest", "vitest", "pytest", "automation"]
+}

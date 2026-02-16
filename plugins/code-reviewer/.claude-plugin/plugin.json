@@ -1,0 +1,10 @@
+{
+  "name": "code-reviewer",
+  "version": "1.0.0",
+  "description": "Performs comprehensive code reviews with security analysis, best practices, and improvement suggestions",
+  "author": {
+    "name": "Adam Wolfman",
+    "github": "awolfden"
+  },
+  "keywords": ["code-review", "security", "best-practices", "linting"]
+}

@@ -1,0 +1,23 @@
+{
+  "name": "claude-plugins-marketplace",
+  "version": "1.0.0",
+  "description": "A marketplace for discovering and sharing Claude Code skills and plugins",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-registry.js",
+    "dev": "npx serve site",
+    "validate": "node scripts/validate-plugins.js",
+    "generate-site": "node scripts/generate-site.js"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "plugins",
+    "skills",
+    "marketplace",
+    "ai"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {}
+}

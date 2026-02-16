@@ -1,0 +1,10 @@
+{
+  "name": "commit-helper",
+  "version": "1.0.0",
+  "description": "Generates conventional commit messages based on staged changes with smart categorization",
+  "author": {
+    "name": "Adam Wolfman",
+    "github": "awolfden"
+  },
+  "keywords": ["git", "commit", "conventional-commits", "automation"]
+}
