@@ -15,10 +15,6 @@ A collection of plugins for [Claude Code](https://docs.anthropic.com/en/docs/cla
 Install individual plugins by name:
 
 ```
-/plugin install code-reviewer@awolfden-plugins
-/plugin install commit-helper@awolfden-plugins
-/plugin install doc-generator@awolfden-plugins
-/plugin install test-runner@awolfden-plugins
 /plugin install brand-demo@awolfden-plugins
 ```
 
@@ -27,6 +23,17 @@ Install individual plugins by name:
 Restart Claude Code for the new plugins to take effect. You should see the new slash commands available.
 
 ## Plugins
+
+### `/brand-demo` — Brand Demo
+
+Brands a demo application for a specific prospect company by researching their website and generating a configuration file with prospect-specific content.
+
+```
+/brand-demo stripe.com     # Brand the demo for Stripe
+/brand-demo linear.app     # Brand the demo for Linear
+```
+
+Researches the company's brand identity (logo, colors, product features, value proposition), maps brand colors to the nearest Radix UI accent, and generates a `brand-config.json` with tailored hero copy, feature cards, trust stats, and dashboard content.
 
 ### `/review` — Code Reviewer
 
@@ -73,17 +80,6 @@ Intelligently runs relevant tests based on code changes and provides failure ana
 ```
 
 Auto-detects your test framework (Jest, Vitest, pytest, Go test, Mocha, RSpec), maps changed files to their test files, and runs only the relevant tests. When tests fail, provides root cause analysis and fix suggestions.
-
-### `/brand-demo` — Brand Demo
-
-Brands a demo application for a specific prospect company by researching their website and generating a configuration file with prospect-specific content.
-
-```
-/brand-demo stripe.com     # Brand the demo for Stripe
-/brand-demo linear.app     # Brand the demo for Linear
-```
-
-Researches the company's brand identity (logo, colors, product features, value proposition), maps brand colors to the nearest Radix UI accent, and generates a `brand-config.json` with tailored hero copy, feature cards, trust stats, and dashboard content.
 
 **Setup**: Copy `plugins/brand-demo/settings.example.json` to `plugins/brand-demo/settings.json` and set `demoAppPath` to the path of your demo app.
 
