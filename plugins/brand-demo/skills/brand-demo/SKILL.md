@@ -5,15 +5,16 @@ description: Brand the SE demo app for a prospect company from their website URL
 
 # Brand Demo Skill
 
-Automatically brand the WorkOS SE demo application for a specific prospect company. Given a company website URL, this skill researches the company's brand identity — logo, colors, product features, and value proposition — then generates a `brand-config.json` that drives the demo app's customizable home pages, and updates `.env` for the accent color and logo.
+Automatically brand the WorkOS SE demo application for a specific prospect company. Given a company website URL, this skill researches the company's brand identity — logo, colors, product features, and value proposition — then generates a `brand-config.json` that drives the demo app's customizable home pages, and updates the environment file for the accent color and logo.
 
 ## Workflow
 
 1. **Intake**: Parse the company URL and locate the demo app
-2. **Research**: Invoke the `brand-researcher` agent to extract brand assets and product info
-3. **Color Mapping**: Map the brand color to the nearest Radix UI accent color
-4. **Apply Branding**: Update `.env` and generate `brand-config.json`
-5. **Summary**: Report what changed and remind to restart the dev server
+2. **Cache Lookup**: Check for previously researched brand assets
+3. **Research**: Invoke the `brand-researcher` agent to extract brand assets and product info (skipped on cache hit)
+4. **Color Mapping**: Map the brand color to the nearest Radix UI accent color (skipped on cache hit)
+5. **Apply Branding**: Persist cache, update env file, generate `brand-config.json`, store in Notion
+6. **Summary**: Report what changed and remind to restart the dev server
 
 ## Phase 1: Intake
 
@@ -28,7 +29,49 @@ Automatically brand the WorkOS SE demo application for a specific prospect compa
    }
    ```
 
-4. **Verify the demo app exists**: Check that `{demoAppPath}/.env` exists. Also check if `{demoAppPath}/brand-config.json` exists (it will be created or overwritten). If `.env` doesn't exist, tell the user to update `settings.json` with the correct path and stop.
+4. **Verify the demo app exists**: Check that `{demoAppPath}/package.json` exists (confirms it's a valid project). Also check if `{demoAppPath}/brand-config.json` exists (it will be created or overwritten). If `package.json` doesn't exist, tell the user to update `settings.json` with the correct path and stop. The env file (`.env.local` or `.env`) will be created if it doesn't exist.
+
+## Phase 1.5: Cache Lookup
+
+Before invoking the researcher, check for a cached brand profile:
+
+1. **Compute the cache slug**: lowercase the company domain, strip protocol and `www.` (e.g., `https://www.acme.com` → `acme.com`)
+2. **Check for `{demoAppPath}/.brand-cache/{slug}.json`**
+3. If the cache file exists:
+   - Read and parse it
+   - Present a brief summary:
+     ```
+     Found cached brand assets for {companyName} (cached {cachedAt}):
+       Color: {accentColor} | Logo: {logoUrl ? "yes" : "none"} | Features: {features.length} cards
+     ```
+   - Use `AskUserQuestion`:
+     ```
+     Question: "Use cached brand assets or re-research?"
+     Options:
+     - "Use cache" — Skip research and apply cached values
+     - "Re-research" — Fetch fresh brand data from the website
+     ```
+   - If "Use cache", skip Phase 2 and Phase 3 entirely — proceed to Phase 4 with cached values (the cache already contains the mapped Radix accent color)
+4. If no cache file exists, proceed to Phase 2 as normal
+
+**Cache file schema** (`{demoAppPath}/.brand-cache/{slug}.json`):
+```json
+{
+  "companyName": "Acme Corp",
+  "domain": "acme.com",
+  "logoUrl": "https://...",
+  "primaryBrandColor": "#6E56CF",
+  "accentColor": "violet",
+  "tagline": "The platform for modern teams",
+  "description": "Acme Corp helps teams collaborate securely.",
+  "features": [
+    { "name": "Feature Name", "description": "1-sentence description" }
+  ],
+  "valueProposition": "The leading collaboration platform",
+  "customerCount": "20K+",
+  "cachedAt": "2026-03-23T12:00:00Z"
+}
+```
 
 ## Phase 2: Research
 
@@ -116,9 +159,37 @@ Given the brand's primary hex color (e.g., `#6E56CF`):
 
 Now apply the branding to the demo app. **Read each file before editing.**
 
-### 4a: Update `.env`
+### 4a: Persist Brand Cache
 
-Read `{demoAppPath}/.env`. Find and replace the `ACCENT_COLOR` and `PROSPECT_LOGO` lines.
+Write the researched brand data to `{demoAppPath}/.brand-cache/{slug}.json` using the Write tool:
+```json
+{
+  "companyName": "{Company Name}",
+  "domain": "{normalized domain}",
+  "logoUrl": "{logo_url}",
+  "primaryBrandColor": "{brand_hex}",
+  "accentColor": "{chosen_radix_color}",
+  "tagline": "{tagline}",
+  "description": "{company_description}",
+  "features": [{"name": "...", "description": "..."}],
+  "valueProposition": "{value_prop}",
+  "customerCount": "{count}",
+  "cachedAt": "{ISO 8601 timestamp}"
+}
+```
+
+Create the `.brand-cache/` directory if it doesn't exist (use `mkdir -p` via Bash). Add `.brand-cache/` to `.gitignore` if not already present.
+
+### 4b: Update Environment File
+
+**Determine the correct env file** — read the project's `package.json` to detect the framework:
+- **Next.js** (has `next` in dependencies) → use `.env.local` (gitignored by default, preferred for local overrides)
+- **Vite** (has `vite` in dependencies) → use `.env.local`
+- **All others** → use `.env`
+
+If the preferred env file doesn't exist, create it using the Write tool. If it exists, read it before editing.
+
+Find and replace the `ACCENT_COLOR` and `PROSPECT_LOGO` lines.
 
 **If the lines exist** (they may be commented or uncommented), use the Edit tool to replace them:
 
@@ -132,7 +203,7 @@ Old: PROSPECT_LOGO=https://example.com/logo.png
 New: PROSPECT_LOGO={logo_url}
 ```
 
-**Important**: The `.env` file may have multiple commented-out blocks for different prospects. Only modify the **uncommented** `ACCENT_COLOR` and `PROSPECT_LOGO` lines. Do not touch commented lines.
+**Important**: The env file may have multiple commented-out blocks for different prospects. Only modify the **uncommented** `ACCENT_COLOR` and `PROSPECT_LOGO` lines. Do not touch commented lines.
 
 **If the lines don't exist**, append them to the end of the file:
 ```
@@ -141,7 +212,9 @@ ACCENT_COLOR={chosen_radix_color}
 PROSPECT_LOGO={logo_url}
 ```
 
-### 4b: Generate and Write `brand-config.json`
+**Autonomy rule**: Never ask the user to manually edit env files. Never tell the user to run a command to set env vars. Claude MUST write the values directly using Edit (for existing lines) or Write (for new file). If the Edit tool fails because the old string isn't found, fall back to appending the vars.
+
+### 4c: Generate and Write `brand-config.json`
 
 Generate a complete `brand-config.json` and write it to `{demoAppPath}/brand-config.json` using the Write tool. The demo app reads this file to populate all page content.
 
@@ -208,6 +281,29 @@ If Product Features were found by the researcher, use them to inform the descrip
 
 **Valid icon names**: `LockClosedIcon`, `LockOpen1Icon`, `PersonIcon`, `GlobeIcon`, `GearIcon`, `Link1Icon`, `ActivityLogIcon`, `RocketIcon`, `MixIcon`, `LayersIcon`, `BarChartIcon`, `CheckCircledIcon`
 
+### 4d: Store Brand Assets in Notion
+
+If Notion MCP tools are available, persist brand assets alongside the Wiz-Kid deal page:
+
+1. **Search for existing deal page**: Use `notion-search` to find a page in the Deals database matching the company name or domain
+2. **If a deal page exists**:
+   - Use `notion-fetch` to read the page content
+   - Check if a "Brand Assets" section already exists
+   - If it exists, update it. If not, append a new section using `notion-update-page`:
+     ```
+     ## Brand Assets
+     - **Logo URL**: {logo_url}
+     - **Accent Color**: {radix_color} (matched from {brand_hex})
+     - **Tagline**: {tagline}
+     - **Description**: {description}
+     - **Features**: {feature_count} cards generated
+     - **Last Branded**: {date}
+     ```
+3. **If no deal page exists**, skip Notion storage silently — don't create a deal page just for branding
+4. **If Notion MCP tools are not available** (tools fail or aren't connected), skip silently and proceed
+
+This step is best-effort — never block branding on Notion failures.
+
 ## Phase 5: Summary
 
 After all edits are applied, present a summary:
@@ -220,8 +316,9 @@ After all edits are applied, present a summary:
 **Demo App Path**: {demoAppPath}
 
 ### Files Modified
-- `.env` — Updated ACCENT_COLOR and PROSPECT_LOGO
+- `.env.local` (or `.env`) — Updated ACCENT_COLOR and PROSPECT_LOGO
 - `brand-config.json` — Generated prospect-specific content configuration
+- `.brand-cache/{slug}.json` — Cached brand assets for future use
 
 ### Content Generated
 - Hero: "{hero.heading}"
@@ -247,15 +344,21 @@ After all edits are applied, present a summary:
 | Value proposition not found | Use "Secure access for {Company Name}" as hero heading |
 | Customer count not found | Use "10K+" as default trust stat |
 | Demo app not at configured path | Tell user to update `settings.json` |
-| `.env` missing expected variables | Add new lines rather than replacing |
+| Env file missing entirely | Create `.env.local` (Next.js/Vite) or `.env` and write vars |
+| Env file missing expected variables | Append new lines rather than replacing |
+| Notion MCP unavailable | Skip Notion storage silently, continue |
+| Cache file corrupted/unreadable | Delete it, proceed with fresh research |
 
 ## Critical Constraints
 
 - **Always read files before editing** — the demo app may have been previously branded
 - **Never guess brand colors** — use researched hex values or ask the user
-- **Preserve `.env` structure** — only modify uncommented ACCENT_COLOR and PROSPECT_LOGO lines
+- **Preserve env file structure** — only modify uncommented ACCENT_COLOR and PROSPECT_LOGO lines in `.env.local` (Next.js/Vite) or `.env` (others)
 - **Don't modify component files or page.tsx** — all page content is driven by brand-config.json
 - **Write complete configs** — always write every field in brand-config.json, never partial
-- **Use only valid icon names** — see the icon reference in Phase 4b
+- **Use only valid icon names** — see the icon reference in Phase 4c
 - **Don't restart the dev server** — just remind the user to do it
-- **Use the Edit tool** for `.env` changes — use the Write tool for `brand-config.json`
+- **Use the Edit tool** for env file changes — use the Write tool for `brand-config.json` and new env files
+- **Never require manual env edits** — always write env vars autonomously, creating the file if needed
+- **Cache brand research** — always persist to `.brand-cache/` after research and check cache before researching
+- **Notion is best-effort** — store brand assets on Wiz-Kid deal pages when available, skip silently when not
