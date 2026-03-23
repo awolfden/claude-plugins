@@ -31,6 +31,53 @@ Automatically brand the WorkOS SE demo application for a specific prospect compa
 
 4. **Verify the demo app exists**: Check that `{demoAppPath}/package.json` exists (confirms it's a valid project). Also check if `{demoAppPath}/brand-config.json` exists (it will be created or overwritten). If `package.json` doesn't exist, tell the user to update `settings.json` with the correct path and stop. The env file (`.env.local` or `.env`) will be created if it doesn't exist.
 
+5. **Check env file permissions**: Verify that Claude can read and edit `.env.local` autonomously. Try reading `{demoAppPath}/.env.local` with the Read tool. If the read succeeds, permissions are fine — proceed. If the read is denied, permissions need to be configured.
+
+   **Important: deny rules take precedence over allow rules.** If the user's global `~/.claude/settings.json` has deny rules like `Read(.env.*)` or `Read(**/.env*)`, a project-level allow in `settings.local.json` will NOT override them. The fix must happen at the level where the deny exists.
+
+   If the read is denied, tell the user:
+   ```
+   The brand-demo skill needs permission to read and edit `.env.local` so it can update
+   branding env vars (ACCENT_COLOR, PROSPECT_LOGO) autonomously.
+
+   This requires two things:
+
+   1. **Global settings** (`~/.claude/settings.json`): Make sure there are no deny rules
+      blocking `.env.local`. Rules like `Read(.env.*)` or `Read(**/.env*)` will block
+      access regardless of project-level allows. You can safely narrow these to just
+      `Read(.env)` to protect production secrets while allowing `.env.local`.
+
+   2. **Project settings** (`{demoAppPath}/.claude/settings.local.json`): Add explicit
+      allow rules for the env file:
+      {
+        "permissions": {
+          "allow": [
+            "Read(.env.local)",
+            "Edit(.env.local)"
+          ]
+        }
+      }
+      This file is gitignored and only affects your local Claude Code session.
+   ```
+
+   Use `AskUserQuestion`:
+   ```
+   Question: "Set up env file permissions?"
+   Options:
+   - "Yes, fix both global and project settings" — Remove broad .env deny rules from global settings and add project-level allows
+   - "Yes, project settings only" — Add allows to .claude/settings.local.json (may not work if global deny rules block it)
+   - "No, I'll handle it" — Continue without autonomous env file access (you may be prompted for each edit)
+   ```
+   - If "Yes, fix both":
+     - Read `~/.claude/settings.json` and remove `Read(.env.*)` and `Read(**/.env*)` from the deny array (keep `Read(.env)` to protect the base env file)
+     - Then set up project-level allows (see below)
+   - If "Yes, project settings only":
+     - If `{demoAppPath}/.claude/settings.local.json` exists, read it and merge `"Read(.env.local)"` and `"Edit(.env.local)"` into the existing `permissions.allow` array (preserving all other permissions and settings)
+     - If it doesn't exist, create it with the JSON shown above
+     - Add `.claude/settings.local.json` to `{demoAppPath}/.gitignore` if not already present
+     - Warn: "Note: this may not work if your global settings deny `.env*` reads. If env edits still prompt you, run the skill again and choose 'fix both'."
+   - If "No, I'll handle it": proceed normally (the user will see permission prompts during env file edits)
+
 ## Phase 1.5: Cache Lookup
 
 Before invoking the researcher, check for a cached brand profile:
@@ -51,7 +98,10 @@ Before invoking the researcher, check for a cached brand profile:
      - "Use cache" — Skip research and apply cached values
      - "Re-research" — Fetch fresh brand data from the website
      ```
-   - If "Use cache", skip Phase 2 and Phase 3 entirely — proceed to Phase 4 with cached values (the cache already contains the mapped Radix accent color)
+   - If "Use cache":
+     - Skip Phase 2 and Phase 3 entirely
+     - If the cache contains a `brandConfig` object, also skip Phase 4b (env update) and Phase 4c (config generation) — just compare the cached env values and config against what's already on disk. Only write files that differ. Proceed to Phase 4d (Notion) and Phase 5 (Summary)
+     - If the cache does NOT contain `brandConfig` (older cache format), proceed to Phase 4 normally to generate the config, then save it back to cache
 4. If no cache file exists, proceed to Phase 2 as normal
 
 **Cache file schema** (`{demoAppPath}/.brand-cache/{slug}.json`):
@@ -69,9 +119,12 @@ Before invoking the researcher, check for a cached brand profile:
   ],
   "valueProposition": "The leading collaboration platform",
   "customerCount": "20K+",
-  "cachedAt": "2026-03-23T12:00:00Z"
+  "cachedAt": "2026-03-23T12:00:00Z",
+  "brandConfig": { ... }
 }
 ```
+
+The `brandConfig` field stores the complete generated `brand-config.json` object. This avoids regenerating identical content on subsequent runs.
 
 ## Phase 2: Research
 
@@ -161,7 +214,8 @@ Now apply the branding to the demo app. **Read each file before editing.**
 
 ### 4a: Persist Brand Cache
 
-Write the researched brand data to `{demoAppPath}/.brand-cache/{slug}.json` using the Write tool:
+Write the researched brand data to `{demoAppPath}/.brand-cache/{slug}.json` using the Write tool. **Note**: the `brandConfig` field is populated after Phase 4c generates the config — write the cache file once at the end of Phase 4c with the complete data including `brandConfig`.
+
 ```json
 {
   "companyName": "{Company Name}",
@@ -174,7 +228,8 @@ Write the researched brand data to `{demoAppPath}/.brand-cache/{slug}.json` usin
   "features": [{"name": "...", "description": "..."}],
   "valueProposition": "{value_prop}",
   "customerCount": "{count}",
-  "cachedAt": "{ISO 8601 timestamp}"
+  "cachedAt": "{ISO 8601 timestamp}",
+  "brandConfig": { /* the complete brand-config.json object generated in Phase 4c */ }
 }
 ```
 
@@ -216,7 +271,16 @@ PROSPECT_LOGO={logo_url}
 
 ### 4c: Generate and Write `brand-config.json`
 
-Generate a complete `brand-config.json` and write it to `{demoAppPath}/brand-config.json` using the Write tool. The demo app reads this file to populate all page content.
+**If the cache contains a `brandConfig` object** (cache hit with full config):
+1. Read the existing `{demoAppPath}/brand-config.json` (if it exists)
+2. Compare the cached `brandConfig` against the file on disk
+3. If they match, skip writing — log "brand-config.json already up to date"
+4. If they differ (or the file doesn't exist), write the cached `brandConfig` to `{demoAppPath}/brand-config.json`
+5. Skip the generation rules below — proceed to Phase 4d
+
+**If the cache does NOT contain `brandConfig`** (fresh research or older cache):
+
+Generate a complete `brand-config.json` and write it to `{demoAppPath}/brand-config.json` using the Write tool. The demo app reads this file to populate all page content. After writing, save the generated config back to the cache file by updating `{demoAppPath}/.brand-cache/{slug}.json` with the `brandConfig` field.
 
 **Content generation rules:**
 
