@@ -285,7 +285,7 @@ If Product Features were found by the researcher, use them to inform the descrip
 
 If Notion MCP tools are available, persist brand assets alongside the Wiz-Kid deal page:
 
-1. **Search for existing deal page**: Use `notion-search` to find a page in the Deals database matching the company name or domain
+1. **Search for existing deal page**: Use `notion-search` with `content_search_mode: "workspace_search"` to find a page in the Deals database matching the company name. The default `ai_search` mode searches across all connected sources (Calendar, Slack, Drive) and will return irrelevant results — always use `workspace_search` when looking for Notion deal pages.
 2. **If a deal page exists**:
    - Use `notion-fetch` to read the page content
    - Check if a "Brand Assets" section already exists
