@@ -12,6 +12,10 @@ allowed-tools:
   - WebFetch
   - WebSearch
   - AskUserQuestion
+  - Agent
+  - mcp__claude_ai_Notion__notion-search
+  - mcp__claude_ai_Notion__notion-fetch
+  - mcp__claude_ai_Notion__notion-update-page
 ---
 
 # Brand Demo
