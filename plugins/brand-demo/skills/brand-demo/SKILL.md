@@ -435,6 +435,7 @@ After applying local branding, offer to update the WorkOS AuthKit branding in th
    6. Switch to the Custom CSS tab and ensure the background color complements the logo (white/light bg for light logos, dark bg for dark logos)
    7. Find and click the "Save changes" button to persist the updates
    8. Confirm the changes were saved successfully (look for a success toast/banner or verify the page reflects the new values)
+   9. Close the browser tab when done (use the computer tool with action "key" and text "cmd+w" to close the tab)
 
    Take your time reading the page before making changes. If there are multiple tabs, check each one.
 
