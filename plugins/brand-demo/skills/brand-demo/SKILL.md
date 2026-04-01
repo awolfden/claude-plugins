@@ -368,6 +368,102 @@ If Notion MCP tools are available, persist brand assets alongside the Wiz-Kid de
 
 This step is best-effort — never block branding on Notion failures.
 
+## Phase 4e: Update AuthKit Dashboard Branding
+
+After applying local branding, offer to update the WorkOS AuthKit branding in the dashboard so the hosted auth pages (sign-in, sign-up, MFA) match the prospect's brand.
+
+1. **Ask the user** via `AskUserQuestion`:
+   ```
+   Question: "Update AuthKit branding in the WorkOS dashboard?"
+   Options:
+   - "Yes, update dashboard branding" — Launch a browser session to update dashboard.workos.com/branding
+   - "Skip" — Continue without updating dashboard branding
+   ```
+
+2. **If "Yes"**, ask the user to confirm they're logged into WorkOS:
+   ```
+   Question: "Are you logged into the WorkOS dashboard (dashboard.workos.com) in Chrome?"
+   Options:
+   - "Yes, I'm logged in" — Proceed with branding update
+   - "No, let me log in first" — Wait for user to log in
+   ```
+
+   If the user selects "No, let me log in first", tell them:
+   ```
+   Please log in at https://dashboard.workos.com in Chrome, then come back and confirm.
+   ```
+   Then re-ask:
+   ```
+   Question: "Ready to update AuthKit branding?"
+   Options:
+   - "Yes, I'm logged in now" — Proceed
+   - "Skip for now" — Continue without updating
+   ```
+
+3. **Once the user is logged in**, spawn a child Claude Code session with Chrome browser tools to apply the branding autonomously.
+
+   Use the **Bash** tool to run:
+   ```bash
+   claude -p "$(cat <<'PROMPT'
+   You have Chrome browser tools available. Your task is to update the AuthKit branding on the WorkOS dashboard.
+
+   First, call tabs_context_mcp to see the current browser state.
+
+   Then navigate to: https://dashboard.workos.com/branding
+
+   The branding page has multiple tabs/sections. You need to update these specific items:
+
+   ## What to update
+
+   1. **Logo** (on the main branding tab): Upload or set the logo URL to: {logo_url}
+   2. **Favicon**: Update the favicon to use the same logo: {logo_url}
+   3. **Link colors**: Update link/accent colors to match the brand color {brand_hex}
+   4. **Custom CSS tab**: Check the background color setting. If the logo has a white/light background, make sure the page background is white or light to match — do NOT leave it as a dark/black background with a light logo. Match the background to complement the logo.
+
+   ## What NOT to change
+
+   - Do NOT change the team name / organization name in WorkOS
+   - Do NOT change any settings unrelated to visual branding
+
+   ## Steps
+
+   1. Navigate to the branding page
+   2. Read the page to understand the current form layout and tabs
+   3. Update the logo
+   4. Update the favicon
+   5. Update link/accent colors to {brand_hex}
+   6. Switch to the Custom CSS tab and ensure the background color complements the logo (white/light bg for light logos, dark bg for dark logos)
+   7. Find and click the "Save changes" button to persist the updates
+   8. Confirm the changes were saved successfully (look for a success toast/banner or verify the page reflects the new values)
+
+   Take your time reading the page before making changes. If there are multiple tabs, check each one.
+
+   If you encounter any issues (page not loaded, not logged in, fields not found), report what happened clearly.
+   PROMPT
+   )" --chrome --model sonnet --allowedTools "mcp__claude-in-chrome__*,Read,Bash"
+   ```
+
+   **Variable substitution**: Replace `{logo_url}`, `{brand_hex}`, and `{Company Name}` with the actual values from the research phase before constructing the command. Use proper shell escaping for values that contain special characters (quotes, ampersands, etc.).
+
+   **Timeout**: Set a Bash timeout of 180000ms (3 minutes). The child session needs time to navigate multiple tabs.
+
+   **Handle the result**:
+   - If the child session exits successfully (exit code 0), parse its stdout for confirmation that branding was applied
+   - If it exits with an error or times out, tell the user:
+     ```
+     Automated dashboard branding didn't complete successfully. You can update it manually at:
+     https://dashboard.workos.com/branding
+
+     Values to set:
+     - Logo + Favicon: {logo_url}
+     - Link/Accent Color: {brand_hex}
+     - Custom CSS: Match background to logo background
+     ```
+
+4. **If "Skip"**, proceed to Phase 5 with no dashboard changes.
+
+**Note**: This step requires the Claude Code CLI (`claude`) to be available in PATH, and the Claude in Chrome browser extension to be installed and connected. If the `claude` command is not found, fall back to providing the user with manual instructions (the branding values and dashboard URL). Never block the rest of the workflow on this step.
+
 ## Phase 5: Summary
 
 After all edits are applied, present a summary:
@@ -389,6 +485,11 @@ After all edits are applied, present a summary:
 - Features: 4 prospect-tailored feature cards
 - Trust: Enterprise compliance stats
 - Dashboard: Personalized welcome with template variables
+
+### AuthKit Dashboard
+{If dashboard branding was applied: "Dashboard branding updated: logo, favicon, link colors, and background via Chrome browser session"}
+{If child session failed: "Automated branding failed — update manually at https://dashboard.workos.com/branding"}
+{If skipped: "Dashboard branding skipped — update manually at https://dashboard.workos.com/branding if needed"}
 
 ### Next Steps
 - Restart the dev server if it's running: `npm run dev`
@@ -412,6 +513,10 @@ After all edits are applied, present a summary:
 | Env file missing expected variables | Append new lines rather than replacing |
 | Notion MCP unavailable | Skip Notion storage silently, continue |
 | Cache file corrupted/unreadable | Delete it, proceed with fresh research |
+| User not logged into WorkOS dashboard | Prompt them to log in, offer to skip |
+| Child Claude session fails or times out | Fall back to manual instructions with branding values |
+| `claude` CLI not found in PATH | Fall back to manual instructions with branding values |
+| Chrome extension not connected | Child session will report failure; fall back to manual instructions |
 
 ## Critical Constraints
 
