@@ -5,16 +5,17 @@ description: Brand the SE demo app for a prospect company from their website URL
 
 # Brand Demo Skill
 
-Automatically brand the WorkOS SE demo application for a specific prospect company. Given a company website URL, this skill researches the company's brand identity — logo, colors, product features, and value proposition — then generates a `brand-config.json` that drives the demo app's customizable home pages, and updates the environment file for the accent color and logo.
+Automatically brand the WorkOS SE demo application for a specific prospect company. Given a company website URL, this skill researches the company's brand identity — logo, colors, product features, and value proposition — maps their colors to Radix UI theme accents, and applies branding to the demo app. Results are cached in Notion for instant reuse.
 
 ## Workflow
 
-1. **Intake**: Parse the company URL and locate the demo app
-2. **Cache Lookup**: Check for previously researched brand assets
-3. **Research**: Invoke the `brand-researcher` agent to extract brand assets and product info (skipped on cache hit)
-4. **Color Mapping**: Map the brand color to the nearest Radix UI accent color (skipped on cache hit)
-5. **Apply Branding**: Persist cache, update env file, generate `brand-config.json`, store in Notion
-6. **Summary**: Report what changed and remind to restart the dev server
+1. **Intake**: Parse the company URL, read settings, determine app type
+2. **Cache Lookup**: Check Notion DB for existing brand assets
+3. **Research**: If no cache hit, invoke the `brand-researcher` agent
+4. **Color Mapping**: Map the brand color to the nearest Radix UI accent color
+5. **Apply Branding**: Write `brand-config.ts` (local) OR `.env` + `brand-config.json` (legacy)
+6. **Cache Write**: Store/update brand assets in Notion
+7. **Summary**: Report what changed
 
 ## Phase 1: Intake
 
@@ -22,129 +23,77 @@ Automatically brand the WorkOS SE demo application for a specific prospect compa
 
 2. **Normalize the URL**: If it doesn't start with `http://` or `https://`, prepend `https://`.
 
-3. **Read the demo app path** from `${CLAUDE_PLUGIN_ROOT}/settings.json`:
+3. **Read settings** from `${CLAUDE_PLUGIN_ROOT}/settings.json`:
    ```json
    {
-     "demoAppPath": "~/path/to/your/demo-app"
+     "appType": "local",
+     "demoAppPaths": {
+       "local": "~/Documents/se-local-demo-app",
+       "legacy": "~/Documents/workos-se-authkit-nextjs-demo-app"
+     },
+     "notionDatabaseId": "...",
+     "notionDataSourceId": "..."
    }
    ```
+   - `appType` determines which branding strategy to use ("local" or "legacy")
+   - The active demo app path is `demoAppPaths[appType]`
+   - `notionDataSourceId` is used for Notion cache operations
 
-4. **Verify the demo app exists**: Check that `{demoAppPath}/package.json` exists (confirms it's a valid project). Also check if `{demoAppPath}/brand-config.json` exists (it will be created or overwritten). If `package.json` doesn't exist, tell the user to update `settings.json` with the correct path and stop. The env file (`.env.local` or `.env`) will be created if it doesn't exist.
+4. **Extract the domain** from the URL: strip protocol, path, query params, and `www.` prefix. E.g., `https://www.stripe.com/payments` becomes `stripe.com`.
 
-5. **Check env file permissions**: Verify that Claude can read and edit `.env.local` autonomously. Try reading `{demoAppPath}/.env.local` with the Read tool. If the read succeeds, permissions are fine — proceed. If the read is denied, permissions need to be configured.
+5. **Verify the demo app exists**:
+   - For `local`: Check that `{demoAppPath}/src/app/lib/brand-config.ts` exists
+   - For `legacy`: Check that `{demoAppPath}/.env` exists
+   - If not found, tell the user to update `settings.json` and stop.
 
-   **Important: deny rules take precedence over allow rules.** If the user's global `~/.claude/settings.json` has deny rules like `Read(.env.*)` or `Read(**/.env*)`, a project-level allow in `settings.local.json` will NOT override them. The fix must happen at the level where the deny exists.
+## Phase 2: Cache Lookup
 
-   If the read is denied, tell the user:
-   ```
-   The brand-demo skill needs permission to read and edit `.env.local` so it can update
-   branding env vars (ACCENT_COLOR, PROSPECT_LOGO) autonomously.
+Use the Notion MCP tools to check for cached brand assets.
 
-   This requires two things:
+1. **Search the Notion database** using `mcp__claude_ai_Notion__notion-search` with the `data_source_url` set to `collection://{notionDataSourceId}` and query set to the extracted domain.
 
-   1. **Global settings** (`~/.claude/settings.json`): Make sure there are no deny rules
-      blocking `.env.local`. Rules like `Read(.env.*)` or `Read(**/.env*)` will block
-      access regardless of project-level allows. You can safely narrow these to just
-      `Read(.env)` to protect production secrets while allowing `.env.local`.
-
-   2. **Project settings** (`{demoAppPath}/.claude/settings.local.json`): Add explicit
-      allow rules for the env file:
-      {
-        "permissions": {
-          "allow": [
-            "Read(.env.local)",
-            "Edit(.env.local)"
-          ]
-        }
-      }
-      This file is gitignored and only affects your local Claude Code session.
-   ```
-
-   Use `AskUserQuestion`:
-   ```
-   Question: "Set up env file permissions?"
-   Options:
-   - "Yes, fix both global and project settings" — Remove broad .env deny rules from global settings and add project-level allows
-   - "Yes, project settings only" — Add allows to .claude/settings.local.json (may not work if global deny rules block it)
-   - "No, I'll handle it" — Continue without autonomous env file access (you may be prompted for each edit)
-   ```
-   - If "Yes, fix both":
-     - Read `~/.claude/settings.json` and remove `Read(.env.*)` and `Read(**/.env*)` from the deny array (keep `Read(.env)` to protect the base env file)
-     - Then set up project-level allows (see below)
-   - If "Yes, project settings only":
-     - If `{demoAppPath}/.claude/settings.local.json` exists, read it and merge `"Read(.env.local)"` and `"Edit(.env.local)"` into the existing `permissions.allow` array (preserving all other permissions and settings)
-     - If it doesn't exist, create it with the JSON shown above
-     - Add `.claude/settings.local.json` to `{demoAppPath}/.gitignore` if not already present
-     - Warn: "Note: this may not work if your global settings deny `.env*` reads. If env edits still prompt you, run the skill again and choose 'fix both'."
-   - If "No, I'll handle it": proceed normally (the user will see permission prompts during env file edits)
-
-## Phase 1.5: Cache Lookup
-
-Before invoking the researcher, check for a cached brand profile:
-
-1. **Compute the cache slug**: lowercase the company domain, strip protocol and `www.` (e.g., `https://www.acme.com` → `acme.com`)
-2. **Check for `{demoAppPath}/.brand-cache/{slug}.json`**
-3. If the cache file exists:
-   - Read and parse it
-   - Present a brief summary:
+2. **If a matching page is FOUND**:
+   - Use `mcp__claude_ai_Notion__notion-fetch` to read all fields from the page
+   - Present to user via `AskUserQuestion`:
      ```
-     Found cached brand assets for {companyName} (cached {cachedAt}):
-       Color: {accentColor} | Logo: {logoUrl ? "yes" : "none"} | Features: {features.length} cards
-     ```
-   - Use `AskUserQuestion`:
-     ```
-     Question: "Use cached brand assets or re-research?"
+     Question: "Found cached branding for {Company Name} (last updated {date}). What would you like to do?"
      Options:
-     - "Use cache" — Skip research and apply cached values
-     - "Re-research" — Fetch fresh brand data from the website
+     - "Apply cached branding (Recommended)" — Skip research, go to Phase 5
+     - "Re-research" — Ignore cache, research fresh, overwrite cache
+     - "Update and apply" — Research again and update the cache entry
      ```
-   - If "Use cache":
-     - Skip Phase 2 and Phase 3 entirely
-     - If the cache contains a `brandConfig` object, also skip Phase 4b (env update) and Phase 4c (config generation) — just compare the cached env values and config against what's already on disk. Only write files that differ. Proceed to Phase 4d (Notion) and Phase 5 (Summary)
-     - If the cache does NOT contain `brandConfig` (older cache format), proceed to Phase 4 normally to generate the config, then save it back to cache
-4. If no cache file exists, proceed to Phase 2 as normal
+   - If "Apply cached branding": extract all fields from cache, skip to Phase 5
+   - If "Re-research" or "Update and apply": proceed to Phase 3
 
-**Cache file schema** (`{demoAppPath}/.brand-cache/{slug}.json`):
-```json
-{
-  "companyName": "Acme Corp",
-  "domain": "acme.com",
-  "logoUrl": "https://...",
-  "primaryBrandColor": "#6E56CF",
-  "accentColor": "violet",
-  "tagline": "The platform for modern teams",
-  "description": "Acme Corp helps teams collaborate securely.",
-  "features": [
-    { "name": "Feature Name", "description": "1-sentence description" }
-  ],
-  "valueProposition": "The leading collaboration platform",
-  "customerCount": "20K+",
-  "cachedAt": "2026-03-23T12:00:00Z",
-  "brandConfig": { ... }
-}
-```
+3. **If NOT FOUND**: proceed to Phase 3.
 
-The `brandConfig` field stores the complete generated `brand-config.json` object. This avoids regenerating identical content on subsequent runs.
+4. **If Notion tools are unavailable or the query fails**: warn the user, skip cache, proceed to Phase 3. Do not stop the workflow for cache failures.
 
-## Phase 2: Research
+## Phase 3: Research
 
 Invoke the `brand-researcher` agent via the **Task** tool:
 
 ```
 Task: brand-researcher
-subagent_type: general-purpose
-Prompt: Research the brand identity of the company at {url}. Follow the instructions in {CLAUDE_PLUGIN_ROOT}/agents/brand-researcher.md. Return structured findings with company name, logo URL, primary brand color (hex), secondary brand color, tagline, description, product features, value proposition, and customer count.
+subagent_type: brand-demo:brand-researcher
+Prompt: Research the brand identity of the company at {url}. Follow the instructions in {CLAUDE_PLUGIN_ROOT}/agents/brand-researcher.md. Return structured findings.
 ```
 
 Wait for research to complete. Parse the returned findings:
 - **Company Name** — required (used throughout config)
-- **Logo URL** — for `PROSPECT_LOGO` env var
+- **Domain** — for cache keying
+- **Logo URL** — for brand logo
 - **Primary Brand Color** — hex value for color mapping
-- **Tagline** — for company.tagline and hero.subheading
-- **Company Description** — for company.description
+- **Secondary Brand Color** — hex value if found
+- **Suggested Gradient Colors** — pair of hex values for dithered gradient
+- **Tagline/Slogan** — for company tagline
+- **Company Description** — for company description
 - **Product Features** — for feature cards (3-4 features with names and descriptions)
-- **Value Proposition** — for hero.heading generation
-- **Customer Count** — for trust stats (e.g., "20K+ Companies Trust {Name}")
+- **Value Proposition** — for hero heading generation
+- **Customer Count** — for trust stats
+- **Prospect-Specific Feature Copy** — 4 feature descriptions mentioning the company
+- **Suggested Hero Copy** — heading and subheading
+- **Research Notes** — full markdown for cache storage
 
 ### Handle Missing Data
 
@@ -154,7 +103,7 @@ If the agent returns "N/A" for critical fields, use `AskUserQuestion`:
 ```
 Question: "The brand researcher couldn't find a logo for {Company Name}. Can you provide one?"
 Options:
-- "Skip logo" — Don't update PROSPECT_LOGO
+- "Skip logo" — Don't set a logo (will use default SVG)
 - "I'll provide a URL" — Enter a logo URL manually
 ```
 
@@ -170,13 +119,13 @@ Options:
 
 If the user chooses "Let me pick", present all 25 Radix colors via `AskUserQuestion`.
 
-**Missing product features**: This is OK — the skill will use generic enterprise auth feature descriptions, customized with the company name.
+**Missing product features**: This is OK — use the Prospect-Specific Feature Copy from the researcher, or fall back to generic enterprise auth feature descriptions customized with the company name.
 
-**Missing value proposition**: This is OK — the skill will use "Secure access for {Company Name}" as the hero heading.
+**Missing value proposition**: This is OK — use the Suggested Hero Copy from the researcher, or fall back to "Secure access for {Company Name}".
 
-**Missing customer count**: This is OK — the skill will default to "10K+".
+**Missing customer count**: This is OK — default to "10K+".
 
-## Phase 3: Color Mapping
+## Phase 4: Color Mapping
 
 Read `${CLAUDE_PLUGIN_ROOT}/shared/radix-color-map.md` for the color reference table.
 
@@ -185,7 +134,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/shared/radix-color-map.md` for the color reference t
 Given the brand's primary hex color (e.g., `#6E56CF`):
 
 1. **Parse the hex color to RGB**:
-   - `#6E56CF` → R:110, G:86, B:207
+   - `#6E56CF` -> R:110, G:86, B:207
 
 2. **For each Radix color in the table**, parse its hex to RGB and compute the Euclidean distance:
    ```
@@ -208,11 +157,119 @@ Given the brand's primary hex color (e.g., `#6E56CF`):
 
    If the user wants to pick another, present the full list of 25 Radix colors.
 
-## Phase 4: Apply Branding
+## Phase 5: Apply Branding
 
-Now apply the branding to the demo app. **Read each file before editing.**
+Read `appType` from settings to determine which strategy to use.
 
-### 4a: Persist Brand Cache
+---
+
+### For `appType: "local"` (new demo app)
+
+Generate and write a complete `brand-config.ts` to `{demoAppPath}/src/app/lib/brand-config.ts`.
+
+1. **Read the current `brand-config.ts`** to understand the interface structure and defaults. Preserve all type definitions (`FeatureCard`, `TrustStat`, `QuickAction`, `StatusItem`, `BrandConfig`) and the `getBrandConfig()` export exactly as-is.
+
+2. **Generate a new `brandConfig` object** with all research data:
+
+   ```typescript
+   export const brandConfig: BrandConfig = {
+     company: {
+       name: "{Company Name}",
+       tagline: "{Tagline}",
+       description: "{Description}. Powered by WorkOS AuthKit.",
+       domain: "{domain}",
+     },
+     logo: {
+       url: "{Logo URL}",
+       altText: "{Company Name} logo",
+     },
+     theme: {
+       accentColor: "{radix_color}",
+       primaryHex: "{primary_hex}",
+       secondaryHex: "{secondary_hex}",  // omit if N/A
+       gradient: {
+         enabled: true,
+         colors: ["{gradient_color_1}", "{gradient_color_2}"],
+       },
+     },
+     hero: {
+       heading: "{Suggested Hero Heading}",
+       subheading: "{Suggested Hero Subheading}",
+       ctaText: "Get Started",
+     },
+     features: [
+       {
+         title: "Single Sign-On",
+         description: "{Prospect-specific SSO copy}",
+         icon: "LockClosedIcon",
+       },
+       {
+         title: "Directory Sync",
+         description: "{Prospect-specific Directory Sync copy}",
+         icon: "PersonIcon",
+       },
+       {
+         title: "Multi-Factor Auth",
+         description: "{Prospect-specific MFA copy}",
+         icon: "LockOpen1Icon",
+       },
+       {
+         title: "Audit Logs",
+         description: "{Prospect-specific Audit Logs copy}",
+         icon: "ActivityLogIcon",
+       },
+     ],
+     trust: {
+       heading: "Enterprise-grade security and compliance",
+       stats: [
+         { value: "SOC 2", label: "Type II Certified" },
+         { value: "99.99%", label: "Uptime SLA" },
+         { value: "GDPR", label: "Compliant" },
+         { value: "{Customer Count or 10K+}", label: "Companies Trust {Company Name}" },
+       ],
+     },
+     dashboard: {
+       welcomeHeading: "Welcome back, {{firstName}}",
+       welcomeSubheading: "Manage your {{companyName}} workspace",
+       statusItems: [
+         { label: "Authentication", icon: "LockClosedIcon", value: "Active" },
+         { label: "Team Members", icon: "PersonIcon", value: "Synced" },
+         { label: "Audit Trail", icon: "ActivityLogIcon", value: "Recording" },
+       ],
+     },
+     quickActions: [
+       {
+         title: "Settings",
+         description: "Manage your profile, security, and team settings.",
+         href: "/user-settings",
+         icon: "GearIcon",
+       },
+       {
+         title: "Logs",
+         description: "View authentication logs and decoded tokens.",
+         href: "/logs",
+         icon: "ActivityLogIcon",
+       },
+     ],
+   };
+   ```
+
+3. **Write the full file** using the `Write` tool. The file must include:
+   - All interface/type definitions (unchanged from current file)
+   - The new `brandConfig` const
+   - The `getBrandConfig()` export
+
+4. **Keep `dashboard` and `quickActions` at their defaults** — these are WorkOS-specific, not prospect-specific.
+
+5. If the logo URL is "N/A" or was skipped, omit the `logo` property entirely.
+
+6. **Gradient is always enabled** when branding for a prospect on the local app.
+
+---
+
+### For `appType: "legacy"` (old demo app)
+
+**Update `.env`**:
 
 Write the researched brand data to `{demoAppPath}/.brand-cache/{slug}.json` using the Write tool. **Note**: the `brandConfig` field is populated after Phase 4c generates the config — write the cache file once at the end of Phase 4c with the complete data including `brandConfig`.
 
@@ -246,129 +303,59 @@ If the preferred env file doesn't exist, create it using the Write tool. If it e
 
 Find and replace the `ACCENT_COLOR` and `PROSPECT_LOGO` lines.
 
-**If the lines exist** (they may be commented or uncommented), use the Edit tool to replace them:
+- If the lines exist, use the Edit tool to replace them
+- If the lines don't exist, append them to the end of the file
+- Only modify **uncommented** lines. Do not touch commented lines.
 
-```
-Old: ACCENT_COLOR=iris
-New: ACCENT_COLOR={chosen_radix_color}
-```
+**Generate and write `brand-config.json`**:
 
-```
-Old: PROSPECT_LOGO=https://example.com/logo.png
-New: PROSPECT_LOGO={logo_url}
-```
+Generate a complete `brand-config.json` and write it to `{demoAppPath}/brand-config.json` using the Write tool.
 
-**Important**: The env file may have multiple commented-out blocks for different prospects. Only modify the **uncommented** `ACCENT_COLOR` and `PROSPECT_LOGO` lines. Do not touch commented lines.
+Content generation rules:
 
-**If the lines don't exist**, append them to the end of the file:
-```
-# {Company Name}
-ACCENT_COLOR={chosen_radix_color}
-PROSPECT_LOGO={logo_url}
-```
-
-**Autonomy rule**: Never ask the user to manually edit env files. Never tell the user to run a command to set env vars. Claude MUST write the values directly using Edit (for existing lines) or Write (for new file). If the Edit tool fails because the old string isn't found, fall back to appending the vars.
-
-### 4c: Generate and Write `brand-config.json`
-
-**If the cache contains a `brandConfig` object** (cache hit with full config):
-1. Read the existing `{demoAppPath}/brand-config.json` (if it exists)
-2. Compare the cached `brandConfig` against the file on disk
-3. If they match, skip writing — log "brand-config.json already up to date"
-4. If they differ (or the file doesn't exist), write the cached `brandConfig` to `{demoAppPath}/brand-config.json`
-5. Skip the generation rules below — proceed to Phase 4d
-
-**If the cache does NOT contain `brandConfig`** (fresh research or older cache):
-
-Generate a complete `brand-config.json` and write it to `{demoAppPath}/brand-config.json` using the Write tool. The demo app reads this file to populate all page content. After writing, save the generated config back to the cache file by updating `{demoAppPath}/.brand-cache/{slug}.json` with the `brandConfig` field.
-
-**Content generation rules:**
-
-**company section:**
-- `name`: Use the researched Company Name
-- `tagline`: Use the researched Tagline. If "N/A", generate a concise tagline from the Company Description (5-8 words)
-- `description`: Use the researched Company Description. Append " Powered by WorkOS AuthKit." at the end
-
-**hero section:**
-- `heading`: Generate from the Value Proposition — reframe with a security/access angle. Examples:
-  - Value prop "The leading customer data platform" → heading "Secure access for your data platform"
-  - Value prop "Modern analytics for product teams" → heading "Secure your product analytics workspace"
-  - Value prop "N/A" → heading "Secure access for {Company Name}"
-  The heading should connect the prospect's product to authentication/security.
-- `subheading`: Generate a 1-2 sentence description: "Enterprise-grade authentication for {Company Name}. Single sign-on, directory sync, and multi-factor authentication — all powered by WorkOS."
-- `ctaText`: Default to "Sign In"
-
-**features section** (exactly 4 cards):
-Generate 4 feature cards for enterprise auth capabilities. Each card should be tailored to the prospect's product and industry.
-
-The 4 features are always:
-1. **Single Sign-On** — icon: `LockClosedIcon`
-2. **Directory Sync** — icon: `PersonIcon`
-3. **Multi-Factor Auth** — icon: `LockOpen1Icon`
-4. **Audit Logs** — icon: `ActivityLogIcon`
-
-For the description of each card, reference the prospect's product. Examples:
-- Generic: "Connect your identity provider for seamless, secure access across all your tools."
-- For a data platform: "Connect your identity provider for seamless access to your customer data platform."
-- For a design tool: "Connect your identity provider so your design team can access projects securely."
-
-If Product Features were found by the researcher, use them to inform the descriptions — reference the prospect's actual product capabilities in the auth feature descriptions.
-
-**trust section:**
-- `heading`: "Enterprise-grade security and compliance"
-- `stats`: Always 4 items:
-  1. `{ "value": "SOC 2", "label": "Type II Certified" }`
-  2. `{ "value": "99.99%", "label": "Uptime SLA" }`
-  3. `{ "value": "GDPR", "label": "Compliant" }`
-  4. If Customer Count was found: `{ "value": "{count}+", "label": "Companies Trust {Company Name}" }`
-     If not found: `{ "value": "10K+", "label": "Companies Trust {Company Name}" }`
-
-**dashboard section:**
-- `welcomeHeading`: Always `"Welcome back, {{firstName}}"`
-- `welcomeSubheading`: Always `"Manage your {{companyName}} workspace"`
-- `statusItems`: Always these 3 items:
-  ```json
-  [
-    { "label": "Authentication", "icon": "LockClosedIcon", "value": "Active" },
-    { "label": "Team Members", "icon": "PersonIcon", "value": "Synced" },
-    { "label": "Integrations", "icon": "Link1Icon", "value": "Connected" }
-  ]
-  ```
-
-**quickActions section** (exactly 3 cards):
-- Settings card: `{ "title": "Settings", "description": "Manage your profile, security, and team settings.", "href": "/user-settings", "icon": "GearIcon" }`
-- Integrations card: `{ "title": "Integrations", "description": "Connect your tools and manage data pipelines.", "href": "/integrations", "icon": "Link1Icon" }`
-  - If the prospect's product has a specific integration angle, customize the description (e.g., for a data platform: "Connect your data sources and manage pipelines.")
-- Logs card: `{ "title": "Logs", "description": "View authentication logs and decoded tokens.", "href": "/logs", "icon": "ActivityLogIcon" }`
-
-**Write the complete JSON file** using the Write tool. Do not write a partial config. Ensure valid JSON formatting.
+- **company section**: Use researched Company Name, Tagline (or generate from Description), Description + " Powered by WorkOS AuthKit."
+- **hero section**: Use Suggested Hero Copy from researcher. If not available, generate heading from Value Proposition with a security angle, subheading as "Enterprise-grade authentication for {Company Name}..."
+- **features section**: Use Prospect-Specific Feature Copy from researcher. Always 4 cards: SSO (LockClosedIcon), Directory Sync (PersonIcon), MFA (LockOpen1Icon), Audit Logs (ActivityLogIcon).
+- **trust section**: heading "Enterprise-grade security and compliance", 4 stats (SOC 2, 99.99% Uptime, GDPR, Customer Count)
+- **dashboard section**: welcomeHeading "Welcome back, {{firstName}}", welcomeSubheading "Manage your {{companyName}} workspace"
+- **quickActions section**: Settings, Integrations, Logs cards
 
 **Valid icon names**: `LockClosedIcon`, `LockOpen1Icon`, `PersonIcon`, `GlobeIcon`, `GearIcon`, `Link1Icon`, `ActivityLogIcon`, `RocketIcon`, `MixIcon`, `LayersIcon`, `BarChartIcon`, `CheckCircledIcon`
 
-### 4d: Store Brand Assets in Notion
+## Phase 6: Cache Write
 
-If Notion MCP tools are available, persist brand assets alongside the Wiz-Kid deal page:
+Store or update the brand assets in the Notion database for future reuse.
 
-1. **Search for existing deal page**: Use `notion-search` with `content_search_mode: "workspace_search"` to find a page in the Deals database matching the company name. The default `ai_search` mode searches across all connected sources (Calendar, Slack, Drive) and will return irrelevant results — always use `workspace_search` when looking for Notion deal pages.
-2. **If a deal page exists**:
-   - Use `notion-fetch` to read the page content
-   - Check if a "Brand Assets" section already exists
-   - If it exists, update it. If not, append a new section using `notion-update-page`:
+1. **If this was a new research** (no cache hit existed):
+   - Use `mcp__claude_ai_Notion__notion-create-pages` with `data_source_id` set to the `notionDataSourceId` from settings
+   - Create a page with all brand fields:
+     ```json
+     {
+       "Domain": "{domain}",
+       "Company Name": "{company_name}",
+       "Accent Color": "{radix_color}",
+       "Logo URL": "{logo_url}",
+       "Primary Color": "{primary_hex}",
+       "Secondary Color": "{secondary_hex}",
+       "Gradient Colors": "[\"color1\", \"color2\"]",
+       "Tagline": "{tagline}",
+       "Description": "{description}",
+       "Feature Copy": "[\"SSO copy\", \"Dir Sync copy\", \"MFA copy\", \"Audit copy\"]",
+       "Hero Heading": "{heading}",
+       "Hero Subheading": "{subheading}",
+       "Research Notes": "{full markdown research notes}",
+       "date:Last Updated:start": "{ISO datetime}",
+       "date:Last Updated:is_datetime": 1,
+       "Last Branded By": "{current user or 'SE'}"
+     }
      ```
-     ## Brand Assets
-     - **Logo URL**: {logo_url}
-     - **Accent Color**: {radix_color} (matched from {brand_hex})
-     - **Tagline**: {tagline}
-     - **Description**: {description}
-     - **Features**: {feature_count} cards generated
-     - **Last Branded**: {date}
-     ```
-3. **If no deal page exists**, skip Notion storage silently — don't create a deal page just for branding
-4. **If Notion MCP tools are not available** (tools fail or aren't connected), skip silently and proceed
 
-This step is best-effort — never block branding on Notion failures.
+2. **If this was an "Update and apply"** from Phase 2:
+   - Use `mcp__claude_ai_Notion__notion-update-page` to update the existing page with fresh data
 
-## Phase 5: Summary
+3. **If Notion write fails**: apply branding anyway and warn the user that the cache wasn't updated. Never block branding on cache failures.
+
+## Phase 7: Summary
 
 After all edits are applied, present a summary:
 
@@ -377,24 +364,18 @@ After all edits are applied, present a summary:
 
 **Accent Color**: {radix_color} (matched from {brand_hex})
 **Logo**: {logo_url}
-**Demo App Path**: {demoAppPath}
+**Gradient**: Dithered ({color1} -> {color2})
+**Demo App**: {appType} at {demoAppPath}
+**Notion Cache**: {Created new entry | Updated existing | Applied from cache}
 
 ### Files Modified
-- `.env.local` (or `.env`) — Updated ACCENT_COLOR and PROSPECT_LOGO
-- `brand-config.json` — Generated prospect-specific content configuration
-- `.brand-cache/{slug}.json` — Cached brand assets for future use
-
-### Content Generated
-- Hero: "{hero.heading}"
-- Features: 4 prospect-tailored feature cards
-- Trust: Enterprise compliance stats
-- Dashboard: Personalized welcome with template variables
+- `src/app/lib/brand-config.ts` — Full brand configuration (local app)
+OR
+- `.env` + `brand-config.json` — Environment and config (legacy app)
 
 ### Next Steps
-- Restart the dev server if it's running: `npm run dev`
+- Restart the dev server: `npm run dev`
 - Preview at http://localhost:3000
-- Review `brand-config.json` and tweak any copy if needed
-- Sign in to see the branded dashboard
 ```
 
 ## Error Handling
@@ -402,27 +383,27 @@ After all edits are applied, present a summary:
 | Scenario | Action |
 |----------|--------|
 | Company website unreachable | Ask user for company name and brand color manually |
-| No logo found | Ask user to provide a URL or skip logo |
+| No logo found | Ask user to provide a URL or skip (uses default SVG) |
 | No brand color found | Ask user to pick a Radix accent color |
-| Product features not found by researcher | Use default descriptions, customize with company name |
-| Value proposition not found | Use "Secure access for {Company Name}" as hero heading |
+| Product features not found | Use Prospect-Specific Feature Copy or generic descriptions |
+| Value proposition not found | Use Suggested Hero Copy or "Secure access for {Company Name}" |
 | Customer count not found | Use "10K+" as default trust stat |
 | Demo app not at configured path | Tell user to update `settings.json` |
-| Env file missing entirely | Create `.env.local` (Next.js/Vite) or `.env` and write vars |
-| Env file missing expected variables | Append new lines rather than replacing |
-| Notion MCP unavailable | Skip Notion storage silently, continue |
-| Cache file corrupted/unreadable | Delete it, proceed with fresh research |
+| Notion MCP tools unavailable | Warn user, skip cache, proceed with research-only mode |
+| Notion database not found | Tell user to check `notionDataSourceId` in settings |
+| Notion query/write fails | Log error, skip cache, proceed with branding |
+| `brand-config.ts` write fails | Stop and report — this is a critical failure |
+| Legacy app `.env` missing expected variables | Add new lines rather than replacing |
 
 ## Critical Constraints
 
 - **Always read files before editing** — the demo app may have been previously branded
 - **Never guess brand colors** — use researched hex values or ask the user
-- **Preserve env file structure** — only modify uncommented ACCENT_COLOR and PROSPECT_LOGO lines in `.env.local` (Next.js/Vite) or `.env` (others)
-- **Don't modify component files or page.tsx** — all page content is driven by brand-config.json
-- **Write complete configs** — always write every field in brand-config.json, never partial
-- **Use only valid icon names** — see the icon reference in Phase 4c
+- **Write the full `brand-config.ts`** for local app — don't use Edit for partial changes; Write the complete file to avoid merge issues with previous brandings
+- **Keep type definitions unchanged** — only modify the `brandConfig` const values in brand-config.ts
+- **Don't modify component files** — all page content is driven by config files
+- **Write complete configs** — always write every field, never partial
+- **Use only valid icon names** — see the icon reference in Phase 5
 - **Don't restart the dev server** — just remind the user to do it
-- **Use the Edit tool** for env file changes — use the Write tool for `brand-config.json` and new env files
-- **Never require manual env edits** — always write env vars autonomously, creating the file if needed
-- **Cache brand research** — always persist to `.brand-cache/` after research and check cache before researching
-- **Notion is best-effort** — store brand assets on Wiz-Kid deal pages when available, skip silently when not
+- **Cache failures are non-fatal** — always apply branding even if Notion is unavailable
+- **Gradient is always enabled** when branding for a prospect on the local app

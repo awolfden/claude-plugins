@@ -89,6 +89,20 @@ If Step 1 didn't yield a good logo or clear brand color, use **WebSearch** to se
 
 These pages often have downloadable logos and explicit brand color palettes.
 
+### Step 4: Generate Derived Branding
+
+After extracting core brand data:
+
+1. **Gradient Colors**: If only one brand color was found, create a lighter variant by increasing lightness ~30% in HSL. Return both as a pair: `[primaryHex, lighterVariant]`. If two brand colors exist, use them as the pair.
+
+2. **Prospect-Specific Feature Copy**: Write 1-sentence descriptions for each of the 4 WorkOS features that reference the prospect's company name:
+   - Single Sign-On
+   - Directory Sync
+   - Multi-Factor Auth
+   - Audit Logs
+
+3. **Hero Copy**: Write a heading and subheading tailored to the prospect's domain and industry.
+
 ## Output Format
 
 Return findings in this exact structure:
@@ -98,9 +112,11 @@ Return findings in this exact structure:
 
 **Company Name**: {name}
 **Website**: {url}
+**Domain**: {domain, e.g., stripe.com}
 **Logo URL**: {best logo URL found — prefer square logos for the nav bar}
 **Primary Brand Color**: {hex color, e.g., #6E56CF}
 **Secondary Brand Color**: {hex color if found, or "N/A"}
+**Suggested Gradient Colors**: [{primary_hex}, {lighter_variant_hex}]
 **Tagline/Slogan**: {company tagline if found, or "N/A"}
 **Company Description**: {1-2 sentence description suitable for demo app copy}
 **Industry**: {industry/vertical}
@@ -126,6 +142,18 @@ Return findings in this exact structure:
 
 **Value Proposition**: {1-sentence primary value prop, or "N/A"}
 **Customer Count**: {number like "20,000" or "10K+", or "N/A"}
+
+### Prospect-Specific Feature Copy
+
+1. **Single Sign-On**: {e.g., "Let Stripe employees access the platform with their existing corporate credentials."}
+2. **Directory Sync**: {e.g., "Automatically provision and deprovision Stripe team members from your identity provider."}
+3. **Multi-Factor Auth**: {e.g., "Add enterprise-grade MFA to protect Stripe's sensitive data and workflows."}
+4. **Audit Logs**: {e.g., "Track every authentication event across Stripe's team with exportable audit trails."}
+
+### Suggested Hero Copy
+
+**Heading**: {e.g., "Enterprise auth for Stripe"}
+**Subheading**: {e.g., "Secure authentication with SSO, directory sync, and MFA — built for Stripe's scale."}
 
 ### Research Notes
 - {Where the logo was sourced from (website og:image, LinkedIn, etc.)}
