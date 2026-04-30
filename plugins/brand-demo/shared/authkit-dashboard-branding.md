@@ -19,10 +19,10 @@ Reference for Phase 6 of the brand-demo skill. Instead of handing off to the use
 
 When "Preferred appearance" is set to **Light**, all dark mode color inputs are **disabled** (`disabled=true`). Neither `form_input`, `type`, nor JavaScript can set values on disabled inputs. The form will not register changes.
 
-**Rule**: Before setting color fields, check the appearance mode:
-- **Light** (most common): Only set light mode fields (even indices: 0, 2, 4, 6). Skip dark mode entirely.
-- **Dark**: Only set dark mode fields (odd indices: 1, 3, 5, 7).
-- **Auto**: Set all fields.
+**Rule**: The batched JavaScript in Step 4 handles this automatically — disabled inputs are skipped and their status is reported in the results. No separate appearance mode check is needed. For reference:
+- **Light** (most common): Only light mode fields (even indices: 0, 2, 4, 6) are enabled.
+- **Dark**: Only dark mode fields (odd indices: 1, 3, 5, 7) are enabled.
+- **Auto**: All fields are enabled.
 
 The dark mode values visible on the branding view page are just stale previous values — they don't affect the auth UI when appearance is Light.
 
@@ -58,7 +58,7 @@ The dark mode values visible on the branding view page are just stale previous v
 | Button text | `placeholder="Hex color"` | `placeholder="Hex color"` |
 | Links | `placeholder="Hex color"` | `placeholder="Hex color"` |
 
-**Important**: ref IDs are regenerated on every page load. Always use `read_page` or `find` to get current refs before interacting.
+**Important**: ref IDs are regenerated on every page load. They are still needed for `find()` + `form_input()` interactions (e.g., welcome text editing). Colors and the save button use JavaScript with stable CSS selectors instead — no ref IDs needed.
 
 ### Color Field Layout Pattern
 
@@ -100,46 +100,61 @@ mcp__claude-in-chrome__computer(action: "screenshot", tabId: <tabId>)
 ```
 If redirected to login, ask the user to log in and retry.
 
-### Step 4: Find Form Elements Using `find`
+### Step 4: Set Brand Colors (Batched JavaScript)
 
-**Prefer `find` over `read_page`** — the `find` tool with natural language queries is more reliable than parsing `read_page` output, which may truncate or miss offscreen elements.
+Set all color fields in a single `javascript_tool` call using indexed `input[placeholder="Hex color"]` selectors. The appearance mode check is embedded — disabled inputs (e.g., dark mode fields when appearance is "Light") are skipped and reported automatically. No `find()` or ref IDs needed.
 
-```
-find("Button background light mode text input with placeholder Hex color")  → ref for button bg
-find("Links light mode text input with placeholder Hex color")              → ref for links
-find("Save changes button")                                                  → ref for save
-```
+Replace `{HEX}` with the brand's primary hex color **without** the `#` prefix:
 
-If you need to check appearance mode first:
-```
-find("Preferred appearance combobox")  → check current value (Light/Dark/Auto)
-```
-
-### Step 5: Set Brand Colors
-
-For a typical brand update, set these color fields (the brand's primary hex color):
-
-**Button background** (both light and dark):
-```
-mcp__claude-in-chrome__form_input(ref: "<button_bg_light_hex_ref>", value: "<BRAND_HEX_NO_HASH>", tabId: <tabId>)
-mcp__claude-in-chrome__computer(action: "key", text: "Return", tabId: <tabId>)
-mcp__claude-in-chrome__form_input(ref: "<button_bg_dark_hex_ref>", value: "<BRAND_HEX_NO_HASH>", tabId: <tabId>)
-mcp__claude-in-chrome__computer(action: "key", text: "Return", tabId: <tabId>)
-```
-
-**Links** (both light and dark):
-```
-mcp__claude-in-chrome__form_input(ref: "<links_light_hex_ref>", value: "<BRAND_HEX_NO_HASH>", tabId: <tabId>)
-mcp__claude-in-chrome__computer(action: "key", text: "Return", tabId: <tabId>)
-mcp__claude-in-chrome__form_input(ref: "<links_dark_hex_ref>", value: "<BRAND_HEX_NO_HASH>", tabId: <tabId>)
-mcp__claude-in-chrome__computer(action: "key", text: "Return", tabId: <tabId>)
+```javascript
+(() => {
+  const inputs = document.querySelectorAll('input[placeholder="Hex color"]');
+  const setter = Object.getOwnPropertyDescriptor(
+    HTMLInputElement.prototype, 'value'
+  ).set;
+  const results = {};
+  const setField = (idx, label, hex) => {
+    const el = inputs[idx];
+    if (!el) { results[label] = 'not_found'; return; }
+    if (el.disabled) { results[label] = 'disabled'; return; }
+    setter.call(el, hex);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    results[label] = 'set';
+  };
+  setField(2, 'buttonBgLight', '{HEX}');
+  setField(6, 'linksLight', '{HEX}');
+  setField(3, 'buttonBgDark', '{HEX}');
+  setField(7, 'linksDark', '{HEX}');
+  return JSON.stringify(results);
+})()
 ```
 
-**Important**: After setting each hex value via `form_input`, press Return to commit the value. The form uses React controlled inputs that need an explicit commit.
+The results object reports the status of each field: `set`, `disabled`, or `not_found`. When appearance is **Light**, expect `buttonBgDark` and `linksDark` to report `disabled` — this is normal.
 
-**Optional — Button text**: Usually leave as FFFFFF (white). Only change if brand color is very light.
+**Optional — Button text**: Usually leave as FFFFFF (white). Only change if brand color is very light (luminance > 0.7).
 
 **Optional — Page background**: Usually leave as default. Only change for full custom themes.
+
+### Step 5: Set Welcome Text (Best-Effort)
+
+Edit the AuthKit preview welcome heading. The heading is a React `EditableText` component in the page DOM (not an iframe), inside `.ak-Header h1`.
+
+**Primary approach** — use `find()` + `form_input()` (React controlled component needs MCP input, not raw JS):
+```
+find("editable heading text in AuthKit preview")  → ref
+form_input(ref, "Welcome to {Company Name}")
+computer(action: "key", text: "Return")  → commit the edit
+```
+
+**Fallback** — if `find()` can't locate the heading, use `computer()` actions:
+1. Take a screenshot to locate the heading visually
+2. Click the heading text (from screenshot coordinates)
+3. Triple-click to select all text (`computer(action: "key", text: "cmd+a")`)
+4. Type the new text: `computer(action: "type", text: "Welcome to {Company Name}")`
+5. Press Return to commit: `computer(action: "key", text: "Return")`
+
+This step is **optional/best-effort** — if both approaches fail, skip it and note in the summary.
 
 ### Step 6: Upload Logo Icon and Logo
 
@@ -247,10 +262,19 @@ After clicking Save and the page navigates to `/branding`, re-navigate to `/bran
 
 ### Step 8: Save Changes
 
-Scroll the save button into view and click:
+Click the save button via JavaScript — no ref ID needed:
+
+```javascript
+(() => {
+  const btn = Array.from(document.querySelectorAll('button'))
+    .find(b => b.textContent.trim() === 'Save changes');
+  if (!btn) return JSON.stringify({ saved: false, reason: 'button_not_found' });
+  if (btn.disabled) return JSON.stringify({ saved: false, reason: 'button_disabled' });
+  btn.click();
+  return JSON.stringify({ saved: true });
+})()
 ```
-mcp__claude-in-chrome__computer(action: "left_click", ref: "<save_button_ref>", tabId: <tabId>)
-```
+
 Wait for save to complete (page navigates to `/branding`):
 ```
 mcp__claude-in-chrome__computer(action: "wait", duration: 2, tabId: <tabId>)
@@ -262,16 +286,11 @@ Take a screenshot to confirm the branding page shows updated values:
 mcp__claude-in-chrome__computer(action: "screenshot", tabId: <tabId>)
 ```
 
-## Identifying Color Field Refs from read_page Output
+## Color Field Index Mapping
 
-When `read_page(filter: "interactive")` returns the form, color fields appear after the image upload buttons. The pattern to find them:
+Color fields use `input[placeholder="Hex color"]` selectors. The batched JS in Step 4 uses these indices directly — no ref IDs needed.
 
-1. Scroll through the interactive elements in the `tabpanel` region
-2. After the last `"Clear"` button (for Favicon), the next elements are color fields
-3. Color fields come in groups of 4 for each property: `hex_light`, `color_light`, `hex_dark`, `color_dark`
-4. Only target the `textbox` elements with `placeholder="Hex color"` (skip the `type="color"` inputs)
-
-**Mapping (in order of appearance):**
+**Mapping (in order of appearance via `querySelectorAll`):**
 ```
 hex_input[0]  = Page background, Light mode
 hex_input[1]  = Page background, Dark mode
@@ -283,7 +302,7 @@ hex_input[6]  = Links, Light mode
 hex_input[7]  = Links, Dark mode
 ```
 
-To extract: filter for all `textbox` elements with `placeholder="Hex color"`, then index into the resulting list.
+When appearance is set to **Light**, dark mode inputs (odd indices) are `disabled`. The batched JS skips these automatically.
 
 ## Error Handling
 
@@ -299,8 +318,9 @@ To extract: filter for all `textbox` elements with `placeholder="Hex color"`, th
 
 | Approach | Estimated Time | Tool Calls |
 |----------|---------------|------------|
-| Manual handoff (current) | 2-5 minutes (user switches apps, pastes prompt, waits) | 0 from Claude Code |
-| Direct Chrome automation | 15-25 seconds | 8-12 |
+| Manual handoff | 2-5 minutes (user switches apps, pastes prompt, waits) | 0 from Claude Code |
+| Direct Chrome automation (find + form_input) | 15-25 seconds | 8-12 |
+| Direct Chrome automation (batched JS) | 10-18 seconds | 5-8 |
 | Headless browser / API | N/A — no public API exists | N/A |
 
 ## Notes
@@ -308,4 +328,4 @@ To extract: filter for all `textbox` elements with `placeholder="Hex color"`, th
 - The branding page applies to ALL environments in the workspace, not per-environment
 - Admin Portal and Emails tabs have their own branding — this automation focuses on AuthKit only
 - Custom CSS tab exists for advanced styling but is not needed for basic brand updates
-- The `find` tool can locate elements by natural language (e.g., `find(query: "save changes button")`) as a fallback if `read_page` parsing is complex
+- Colors and save button use `javascript_tool` with stable CSS selectors — no `find()` or ref IDs needed. The `find` tool is still used for welcome text editing and as a fallback for visual interactions

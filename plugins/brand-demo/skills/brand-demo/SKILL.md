@@ -380,33 +380,50 @@ After applying local branding, offer to update the WorkOS AuthKit branding in th
    - "Skip for now" — Continue without updating
    ```
 
-4. **Check appearance mode**: Before setting colors, check the "Preferred appearance" dropdown value. When appearance is **Light**, all dark mode color inputs are **disabled** — `form_input` silently fails on disabled inputs. Only set fields that match the active mode:
-   - **Light** (most common): Only set light mode fields (hex indices 0, 2, 4, 6). Skip dark mode entirely.
-   - **Dark**: Only set dark mode fields (hex indices 1, 3, 5, 7).
-   - **Auto**: Set all fields.
+4. **Set brand colors (batched JavaScript)**: Set all color fields in a single `javascript_tool` call. The appearance mode check is embedded — disabled inputs (dark mode when appearance is "Light") are automatically skipped and reported. Replace `{HEX}` with the brand hex **without** the `#`:
 
-5. **Set brand colors**: Use `form_input` to set hex values, pressing Return after each to commit. Use the `find` tool to locate fields — it's more reliable than parsing `read_page` output:
+   ```javascript
+   (() => {
+     const inputs = document.querySelectorAll('input[placeholder="Hex color"]');
+     const setter = Object.getOwnPropertyDescriptor(
+       HTMLInputElement.prototype, 'value'
+     ).set;
+     const results = {};
+     const setField = (idx, label, hex) => {
+       const el = inputs[idx];
+       if (!el) { results[label] = 'not_found'; return; }
+       if (el.disabled) { results[label] = 'disabled'; return; }
+       setter.call(el, hex);
+       el.dispatchEvent(new Event('input', { bubbles: true }));
+       el.dispatchEvent(new Event('change', { bubbles: true }));
+       results[label] = 'set';
+     };
+     setField(2, 'buttonBgLight', '{HEX}');
+     setField(6, 'linksLight', '{HEX}');
+     setField(3, 'buttonBgDark', '{HEX}');
+     setField(7, 'linksDark', '{HEX}');
+     return JSON.stringify(results);
+   })()
+   ```
 
-   ```
-   find("Button background light mode text input with placeholder Hex color")  → ref for button bg
-   find("Links light mode text input with placeholder Hex color")              → ref for links
-   ```
+   When appearance is **Light**, expect `buttonBgDark` and `linksDark` to report `disabled` — this is normal. When **Auto**, all four should report `set`.
 
-   **Button background** (light mode) — set to `{brand_hex}` without the `#`:
-   ```
-   form_input(ref: <button_bg_light_ref>, value: "{brand_hex_no_hash}")  →  key("Return")
-   ```
-
-   **Links** (light mode) — set to `{brand_hex}` without the `#`:
-   ```
-   form_input(ref: <links_light_ref>, value: "{brand_hex_no_hash}")  →  key("Return")
-   ```
-
-   If appearance is **Auto** or **Dark**, also set the corresponding dark mode fields using `find` with "dark mode" in the query.
-
-   **Button text**: Leave as FFFFFF unless the brand color is very light (luminance > 0.7), in which case set to a dark color like 1A1A1A.
+   **Button text**: Leave as FFFFFF unless the brand color is very light (luminance > 0.7), in which case set to 1A1A1A.
 
    **Page background**: Leave as default unless specifically requested.
+
+5. **Set welcome text (best-effort)**: Edit the AuthKit preview welcome heading. This is a React `EditableText` component in the page DOM (not iframe), inside `.ak-Header h1`.
+
+   **Primary approach** — `find()` + `form_input()`:
+   ```
+   find("editable heading text in AuthKit preview")  → ref
+   form_input(ref, "Welcome to {Company Name}")
+   computer(action: "key", text: "Return")  → commit
+   ```
+
+   **Fallback** — if `find()` fails, use `computer()` actions: screenshot to locate, click the heading, triple-click select all, type new text, press Return.
+
+   This step is **optional** — if both approaches fail, skip and note in summary.
 
 6. **Upload logo to Logo Icon and Logo slots** (if logo URL is available):
 
@@ -498,9 +515,21 @@ After applying local branding, offer to update the WorkOS AuthKit branding in th
 
 8. **Verify favicon aspect ratio**: Before saving, check for the "Image aspect ratio should be 1:1" error in the DOM. If present, re-run the canvas-pad upload for the favicon input.
 
-9. **Save changes**: Click the save button and verify:
+9. **Save changes (JavaScript)**: Click the save button via JS — no ref ID needed:
+
+   ```javascript
+   (() => {
+     const btn = Array.from(document.querySelectorAll('button'))
+       .find(b => b.textContent.trim() === 'Save changes');
+     if (!btn) return JSON.stringify({ saved: false, reason: 'button_not_found' });
+     if (btn.disabled) return JSON.stringify({ saved: false, reason: 'button_disabled' });
+     btn.click();
+     return JSON.stringify({ saved: true });
+   })()
    ```
-   mcp__claude-in-chrome__computer(action: "left_click", ref: <save_ref>, tabId: <tabId>)
+
+   Wait for save, then verify with a screenshot:
+   ```
    mcp__claude-in-chrome__computer(action: "wait", duration: 2, tabId: <tabId>)
    mcp__claude-in-chrome__computer(action: "screenshot", tabId: <tabId>)
    ```
@@ -616,7 +645,7 @@ OR
 - `src/app/favicon.ico` — Browser-tab favicon (32x32 PNG)
 
 ### AuthKit Dashboard
-{If updated: "Dashboard branding updated: button + link colors set to {brand_hex}. Logo uploaded: {yes/no}."}
+{If updated: "Dashboard branding updated: button + link colors set to {brand_hex}. Welcome text: {set/skipped/failed}. Logo uploaded: {yes/no}."}
 {If Chrome unavailable: "Manual update needed at https://dashboard.workos.com/branding"}
 {If skipped: "Dashboard branding skipped"}
 
