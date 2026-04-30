@@ -17,20 +17,25 @@ Use **WebFetch** to visit the company's homepage. Extract:
 1. **Company Name**: From the `<title>` tag, `<meta property="og:site_name">`, or the primary `<h1>` heading. Strip taglines or suffixes (e.g., "Stripe | Financial Infrastructure" → "Stripe").
 
 2. **Logo URL**: Check these sources in order of preference:
-   - `<meta property="og:image">` — often the highest quality brand image
-   - `<link rel="apple-touch-icon">` — square, high-res, great for small displays
-   - `<link rel="icon" type="image/png">` or `<link rel="icon" type="image/svg+xml">` — favicon variants
+   - `<link rel="apple-touch-icon">` — square icon, usually no text
+   - Favicon PNG/SVG variants (`<link rel="icon" type="image/png">` or `<link rel="icon" type="image/svg+xml">`) — usually icon-only
    - Header/nav `<img>` elements with "logo" in the src, alt, or class name
+   - `<meta property="og:image">` — often a lockup or marketing image, use as fallback
    - Skip `.ico` files — they're too low resolution
 
-3. **Brand Colors**: Check these sources:
+3. **Logo Type**: After selecting the best logo URL, classify it:
+   - `"icon"` — symbol/mark only, no visible company name text (favicons, apple-touch-icons, abstract marks like the Apple logo or Twitter bird)
+   - `"wordmark"` — primarily the company name rendered as styled text with no standalone symbol (e.g. Lyft, Google, Spotify)
+   - `"lockup"` — symbol + company name text combined (e.g. GitHub octocat + "GitHub")
+
+4. **Brand Colors**: Check these sources:
    - `<meta name="theme-color" content="...">` — the most explicit brand color signal
    - CSS custom properties on `:root` or `body` (look for `--primary`, `--brand`, `--accent` or similar)
    - Prominent `background-color` values on hero sections, headers, or CTAs
    - SVG logo fill colors
    - Ignore pure black (#000), pure white (#FFF), and near-gray values — these aren't brand colors
 
-4. **Font Family**: Check these sources in order of preference:
+5. **Font Family**: Check these sources in order of preference:
    - Google Fonts `<link>` tags (e.g., `fonts.googleapis.com/css2?family=Inter`) — extract the family name(s)
    - `@font-face` declarations in inline `<style>` blocks — note the `font-family` name and `src` URL
    - CSS custom properties like `--font-family`, `--font-sans`, `--font-heading`
@@ -39,34 +44,34 @@ Use **WebFetch** to visit the company's homepage. Extract:
    - Common patterns: `font-family: 'Inter', sans-serif` or `font-family: var(--font-sans)`
    - Report the actual font name (e.g., "Inter", "Plus Jakarta Sans", "DM Sans") not the CSS variable name
 
-5. **Hero Section Styling**: Analyze the homepage hero/above-the-fold section:
+6. **Hero Section Styling**: Analyze the homepage hero/above-the-fold section:
    - **Background style**: Is it a solid color, gradient, image, or plain white/transparent?
    - **Gradient details**: If a gradient exists, note the colors, direction (e.g., `to bottom right`), and CSS value
    - **Dark or light**: Is the hero section on a dark or light background?
    - **Overall page theme**: Does the site primarily use a light or dark color scheme?
 
-6. **Design Style**: Note the general design language:
+7. **Design Style**: Note the general design language:
    - **Border radius**: Are corners sharp (0-2px), medium (4-8px), or very rounded (12px+)?
    - **Visual density**: Is the design spacious/airy or compact/dense?
 
-7. **Tagline/Slogan**: From the hero section heading or `<meta property="og:description">`.
+8. **Tagline/Slogan**: From the hero section heading or `<meta property="og:description">`.
 
-8. **Company Description**: From `<meta name="description">` or the first paragraph of body text that describes the company.
+9. **Company Description**: From `<meta name="description">` or the first paragraph of body text that describes the company.
 
 ### Step 1b: Extract Product Features
 
 While on the company's website, also extract:
 
-9. **Product Features**: Look for a "Features", "Product", or "Solutions" page or section. Extract 3-4 key feature names and short descriptions. Check these sources in order:
+10. **Product Features**: Look for a "Features", "Product", or "Solutions" page or section. Extract 3-4 key feature names and short descriptions. Check these sources in order:
    - A dedicated features page (e.g., /features, /product, /platform)
    - Homepage feature grid, benefits section, or "Why {Company}" section
    - Navigation menu items under "Product" or "Solutions"
    - If the page has integration cards, partner logos, or use case sections, note the key themes
    - If no explicit features are found, infer 3-4 key capabilities from the company description and industry
 
-10. **Value Proposition**: The primary value proposition — what the product does for customers. Usually found in the hero section heading or the first section below the fold. Extract the core value in one sentence.
+11. **Value Proposition**: The primary value proposition — what the product does for customers. Usually found in the hero section heading or the first section below the fold. Extract the core value in one sentence.
 
-11. **Customer Count / Social Proof**: Look for "Trusted by X+ companies", "X+ customers", "Join X+ teams" or similar social proof text. Extract the number. If not found, set to "N/A".
+12. **Customer Count / Social Proof**: Look for "Trusted by X+ companies", "X+ customers", "Join X+ teams" or similar social proof text. Extract the number. If not found, set to "N/A".
 
 ### Step 2: Search LinkedIn
 
@@ -113,7 +118,8 @@ Return findings in this exact structure:
 **Company Name**: {name}
 **Website**: {url}
 **Domain**: {domain, e.g., stripe.com}
-**Logo URL**: {best logo URL found — prefer square logos for the nav bar}
+**Logo URL**: {best logo URL found — prefer icon-only logos for the nav bar}
+**Logo Type**: {icon | wordmark | lockup}
 **Primary Brand Color**: {hex color, e.g., #6E56CF}
 **Secondary Brand Color**: {hex color if found, or "N/A"}
 **Suggested Gradient Colors**: [{primary_hex}, {lighter_variant_hex}]
@@ -210,5 +216,5 @@ Return findings in this exact structure:
 - **Report actual font names** — don't guess font names; if you can't determine the font, say "N/A"
 - **Flag uncertainty** — say "N/A" or "couldn't determine" rather than guessing
 - **Don't modify any files** — research only, the skill handles file edits
-- **Prefer square logos** — they display better at 30x30px in the demo app nav bar
+- **Prefer icon-only logos (no text)** — when only a wordmark or lockup is available, classify it accordingly
 - **Keep descriptions concise** — 1-2 sentences max, suitable for a demo app landing page
