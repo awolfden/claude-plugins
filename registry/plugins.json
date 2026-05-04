@@ -1,13 +1,13 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-02-16T20:56:42.514Z",
-  "count": 7,
+  "generatedAt": "2026-05-04T22:11:44.688Z",
+  "count": 5,
   "plugins": [
     {
       "id": "brand-demo",
       "name": "brand-demo",
       "description": "Brand the SE demo app for a prospect company from their website URL",
-      "version": "0.1.0",
+      "version": "0.4.0",
       "author": {
         "name": "Adam Wolfman",
         "github": "awolfden"
@@ -32,8 +32,8 @@
         ]
       },
       "license": "MIT",
-      "createdAt": "2026-02-16",
-      "updatedAt": "2026-02-16"
+      "createdAt": "2026-05-04",
+      "updatedAt": "2026-05-04"
     },
     {
       "id": "code-reviewer",
@@ -131,38 +131,6 @@
       "updatedAt": "2025-02-13"
     },
     {
-      "id": "customer-voice",
-      "name": "customer-voice",
-      "description": "Draft customer responses in your voice with optional codebase and docs research",
-      "version": "0.1.0",
-      "author": {
-        "name": "Adam Wolfman",
-        "github": "awolfden"
-      },
-      "type": "skill",
-      "categories": [
-        "development"
-      ],
-      "tags": [
-        "customer-voice"
-      ],
-      "repository": "https://github.com/awolfden/claude-plugins",
-      "installation": {
-        "type": "settings-json",
-        "instructions": "Install the customer-voice plugin from the marketplace"
-      },
-      "requirements": {
-        "platforms": [
-          "macos",
-          "linux",
-          "windows"
-        ]
-      },
-      "license": "MIT",
-      "createdAt": "2026-02-16",
-      "updatedAt": "2026-02-16"
-    },
-    {
       "id": "doc-generator",
       "name": "Doc Generator",
       "description": "Automatically generates documentation for functions, classes, and modules with JSDoc/docstring support",
@@ -255,38 +223,6 @@
       "license": "MIT",
       "createdAt": "2025-02-13",
       "updatedAt": "2025-02-13"
-    },
-    {
-      "id": "workos-brand",
-      "name": "workos-brand",
-      "description": "Apply WorkOS design system branding and components when building UI",
-      "version": "0.1.0",
-      "author": {
-        "name": "Adam Wolfman",
-        "github": "awolfden"
-      },
-      "type": "skill",
-      "categories": [
-        "development"
-      ],
-      "tags": [
-        "workos-brand"
-      ],
-      "repository": "https://github.com/awolfden/claude-plugins",
-      "installation": {
-        "type": "settings-json",
-        "instructions": "Install the workos-brand plugin from the marketplace"
-      },
-      "requirements": {
-        "platforms": [
-          "macos",
-          "linux",
-          "windows"
-        ]
-      },
-      "license": "MIT",
-      "createdAt": "2026-02-16",
-      "updatedAt": "2026-02-16"
     }
   ]
 }
