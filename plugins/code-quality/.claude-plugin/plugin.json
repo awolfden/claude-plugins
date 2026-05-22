@@ -1,0 +1,10 @@
+{
+  "name": "code-quality",
+  "version": "1.0.0",
+  "description": "Thermo-nuclear code quality review with rigorous structural standards",
+  "author": {
+    "name": "Adam Wolfman",
+    "github": "awolfden"
+  },
+  "keywords": ["code-review", "quality", "maintainability", "architecture"]
+}

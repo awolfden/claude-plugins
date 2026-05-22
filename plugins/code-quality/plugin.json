@@ -1,0 +1,6 @@
+{
+  "name": "code-quality",
+  "version": "1.0.0",
+  "description": "Thermo-nuclear code quality review with rigorous structural standards",
+  "commands": "./commands/"
+}

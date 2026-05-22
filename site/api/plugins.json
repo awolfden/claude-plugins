@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-05-04T22:11:44.688Z",
-  "count": 5,
+  "generatedAt": "2026-05-22T23:14:07.681Z",
+  "count": 6,
   "plugins": [
     {
       "id": "brand-demo",
@@ -32,8 +32,8 @@
         ]
       },
       "license": "MIT",
-      "createdAt": "2026-05-04",
-      "updatedAt": "2026-05-04"
+      "createdAt": "2026-05-22",
+      "updatedAt": "2026-05-22"
     },
     {
       "id": "code-reviewer",
@@ -80,6 +80,38 @@
       "license": "MIT",
       "createdAt": "2025-02-13",
       "updatedAt": "2025-02-13"
+    },
+    {
+      "id": "code-quality",
+      "name": "code-quality",
+      "description": "Thermo-nuclear code quality review with rigorous structural standards",
+      "version": "1.0.0",
+      "author": {
+        "name": "Adam Wolfman",
+        "github": "awolfden"
+      },
+      "type": "skill",
+      "categories": [
+        "development"
+      ],
+      "tags": [
+        "code-quality"
+      ],
+      "repository": "https://github.com/awolfden/claude-plugins",
+      "installation": {
+        "type": "settings-json",
+        "instructions": "Install the code-quality plugin from the marketplace"
+      },
+      "requirements": {
+        "platforms": [
+          "macos",
+          "linux",
+          "windows"
+        ]
+      },
+      "license": "MIT",
+      "createdAt": "2026-05-22",
+      "updatedAt": "2026-05-22"
     },
     {
       "id": "commit-helper",
