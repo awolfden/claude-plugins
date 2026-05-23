@@ -4,7 +4,7 @@
     "name": "Adam Wolfman",
     "github": "awolfden"
   },
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Claude Code plugins for code review, commits, documentation, testing, and customer communication",
   "plugins": [
     {
@@ -36,6 +36,12 @@
       "source": "./plugins/brand-demo",
       "description": "Brand the SE demo app for a prospect company from their website URL",
       "version": "0.1.0"
+    },
+    {
+      "name": "code-quality",
+      "source": "./plugins/code-quality",
+      "description": "Thermo-nuclear code quality review with rigorous structural standards",
+      "version": "1.0.0"
     }
   ]
 }
