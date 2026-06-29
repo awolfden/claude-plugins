@@ -14,7 +14,7 @@ Automatically brand the WorkOS SE demo application for a specific prospect compa
 3. **Research**: If no cache hit, invoke the `brand-researcher` agent
 4. **Color Mapping**: Map the brand color to the nearest Radix UI accent color
 5. **Apply Branding**: Write `brand-config.ts` (local) OR `.env` + `brand-config.json` (legacy); refresh browser-tab favicon
-6. **AuthKit Dashboard Branding**: Optionally update WorkOS dashboard colors and logo via Chrome
+6. **AuthKit Branding**: Optionally update WorkOS branding (colors + logo/icon/favicon) via the branding REST API
 7. **Cache Write**: Store/update brand assets in Notion
 8. **Summary**: Report what changed
 
@@ -350,246 +350,58 @@ Next.js apps use `src/app/favicon.ico` (Next 13+ App Router) or `public/favicon.
 
 4. If neither `sips` (macOS) nor a suitable image tool is available on the user's system, note the gap in the summary and ask the user to replace the file manually — do not leave a stale favicon from a previous prospect in place.
 
-## Phase 6: AuthKit Dashboard Branding
+## Phase 6: AuthKit Branding (WorkOS Branding API)
 
-After applying local branding, offer to update the WorkOS AuthKit branding in the dashboard so the hosted auth pages (sign-in, sign-up, MFA) match the prospect's brand.
+After applying local branding, offer to update the WorkOS AuthKit branding so the
+hosted auth pages (sign-in, sign-up, MFA) match the prospect's brand. This uses the
+**branding REST API** — no Chrome, no dashboard login.
 
-**Reference**: See `${CLAUDE_PLUGIN_ROOT}/shared/authkit-dashboard-branding.md` for detailed form structure and field mapping.
+**Reference**: See `${CLAUDE_PLUGIN_ROOT}/shared/authkit-branding-api.md` for the
+full field mapping, the upload flow, and the self-contained Bash recipe.
 
 1. **Ask the user** via `AskUserQuestion`:
    ```
-   Question: "Update AuthKit branding in the WorkOS dashboard?"
+   Question: "Update AuthKit branding for the demo environment via the WorkOS API?"
    Options:
-   - "Yes, update dashboard branding" — Update colors and logo on dashboard.workos.com/branding
-   - "Skip" — Continue without updating dashboard branding
+   - "Yes, update branding" — Apply colors + logo/icon/favicon via the branding API
+   - "Skip" — Continue without updating AuthKit branding
    ```
 
-2. **If "Yes"**, check Chrome availability by calling `mcp__claude-in-chrome__tabs_context_mcp(createIfEmpty: true)`. If the tool fails or is unavailable, fall back to providing manual instructions (see fallback below) and proceed to Phase 7.
+2. **If "Yes"**, resolve config:
+   - `KEY` ← `WORKOS_BRAND_DEMO_KEY` env var, else `workosSecretKey` from `settings.json`.
+     If neither is set, tell the user how to set it and proceed to Phase 7.
+   - `API` ← `workosApiBaseUrl` from `settings.json` (default `https://api.workos.com`).
 
-3. **Verify login**: Navigate to the branding edit page and take a screenshot to confirm the user is logged in:
-   ```
-   mcp__claude-in-chrome__navigate(url: "https://dashboard.workos.com/branding/edit?preview=authkit", tabId: <tabId>)
-   mcp__claude-in-chrome__computer(action: "wait", duration: 2, tabId: <tabId>)
-   mcp__claude-in-chrome__computer(action: "screenshot", tabId: <tabId>)
-   ```
-   If the screenshot shows a login page instead of the branding editor, ask the user to log in:
-   ```
-   Question: "Please log in at https://dashboard.workos.com in Chrome, then confirm."
-   Options:
-   - "Done, I'm logged in" — Retry navigation
-   - "Skip for now" — Continue without updating
-   ```
+3. **Preflight the gate**: `GET /branding`.
+   - `200` → proceed.
+   - `404` → the `branding-api` flag isn't targeting this key's team. Tell the SE
+     to add **their team** as an individual target (Enabled) on the `branding-api`
+     flag in **production** LaunchDarkly — not to flip the Default rule (all SEs
+     share the prod LD env). They need their `team_…` ID. Then retry. If they
+     decline, skip to Phase 7.
+   - `401` → bad/expired key; ask for a valid demo-environment secret key.
 
-4. **Set brand colors (batched JavaScript)**: Set all color fields in a single `javascript_tool` call. The appearance mode check is embedded — disabled inputs (dark mode when appearance is "Light") are automatically skipped and reported. Replace `{HEX}` with the brand hex **without** the `#`:
+4. **Apply colors, theme, and welcome text** with one `PATCH /branding`. Map the
+   resolved brand hex to `lightButtonBackgroundColor`/`darkButtonBackgroundColor`
+   and `lightLinkColor`/`darkLinkColor`. Set `authkitLogoStyle` to `Logo` (or `Icon`
+   if only an icon is available). Button text stays `#FFFFFF` unless the brand color
+   is very light (luminance > 0.7) → `#1A1A1A`. Leave page background default unless
+   requested. Set `authkitSignInHeadingText` to "Welcome to {Company}".
 
-   ```javascript
-   (() => {
-     const inputs = document.querySelectorAll('input[placeholder="Hex color"]');
-     const setter = Object.getOwnPropertyDescriptor(
-       HTMLInputElement.prototype, 'value'
-     ).set;
-     const results = {};
-     const setField = (idx, label, hex) => {
-       const el = inputs[idx];
-       if (!el) { results[label] = 'not_found'; return; }
-       if (el.disabled) { results[label] = 'disabled'; return; }
-       setter.call(el, hex);
-       el.dispatchEvent(new Event('input', { bubbles: true }));
-       el.dispatchEvent(new Event('change', { bubbles: true }));
-       results[label] = 'set';
-     };
-     setField(2, 'buttonBgLight', '{HEX}');
-     setField(6, 'linksLight', '{HEX}');
-     setField(3, 'buttonBgDark', '{HEX}');
-     setField(7, 'linksDark', '{HEX}');
-     return JSON.stringify(results);
-   })()
-   ```
+5. **Upload assets** (logo, logo icon, favicon) using the `upload_asset` helper from
+   the reference doc — presign → S3 POST (**with the required `Content-Type`
+   workaround field**) → collect `path`. Square the favicon with `sips` first. Only
+   keep a path if its upload returned `204`.
 
-   When appearance is **Light**, expect `buttonBgDark` and `linksDark` to report `disabled` — this is normal. When **Auto**, all four should report `set`.
+6. **Assign paths** with a second `PATCH /branding`, mirroring each light path into
+   its dark counterpart.
 
-   **Button text**: Leave as FFFFFF unless the brand color is very light (luminance > 0.7), in which case set to 1A1A1A.
+7. **Verify**: `GET /branding` and confirm the colors and the six `*Path` fields are
+   set. Report the result in the Phase 8 summary.
 
-   **Page background**: Leave as default unless specifically requested.
-
-5. **Set welcome text (best-effort)**: Edit the AuthKit preview welcome heading. This is a React `EditableText` component in the page DOM (not iframe), inside `.ak-Header h1`.
-
-   **Primary approach** — `find()` + `form_input()`:
-   ```
-   find("editable heading text in AuthKit preview")  → ref
-   form_input(ref, "Welcome to {Company Name}")
-   computer(action: "key", text: "Return")  → commit
-   ```
-
-   **Fallback** — if `find()` fails, use `computer()` actions: screenshot to locate, click the heading, triple-click select all, type new text, press Return.
-
-   This step is **optional** — if both approaches fail, skip and note in summary.
-
-6. **Upload logo to Logo Icon and Logo slots** (if logo URL is available):
-
-   Use JavaScript to fetch the logo image and programmatically set it on the file inputs. This is more reliable than the `upload_image` MCP tool (which fails cross-tab). Run via `javascript_tool`, uploading to **only indices 0 and 2** (not favicon yet — it must be uploaded separately after crop modals are dismissed):
-
-   ```javascript
-   (async () => {
-     const logoUrl = '{logo_url}';
-     const response = await fetch(logoUrl);
-     const blob = await response.blob();
-     const file = new File([blob], 'brand-logo.png', { type: blob.type || 'image/png' });
-     const fileInputs = document.querySelectorAll('input[type="file"]');
-     for (const idx of [0, 2]) {
-       const input = fileInputs[idx];
-       if (input) {
-         const dt = new DataTransfer();
-         dt.items.add(file);
-         input.files = dt.files;
-         input.dispatchEvent(new Event('change', { bubbles: true }));
-       }
-     }
-     return 'Logo uploaded to icon + logo inputs';
-   })()
-   ```
-
-   After the JS runs, **crop modals** will appear for logo and logo icon. For each modal:
-   - Take a screenshot to see the crop UI
-   - Click "Save changes" on the crop modal
-   - Wait 1-2 seconds for the next modal to appear
-   - Repeat until all crop modals are dismissed
-
-7. **Upload favicon separately** (REQUIRED — DO NOT SKIP. DO NOT MERGE INTO STEP 6.):
-
-   After all crop modals from step 6 are dismissed, upload the logo to the **favicon file input (index 4)** in a separate JS call.
-
-   **Critical rules for favicons:**
-   - The favicon input enforces 1:1 aspect ratio — non-square logos trigger "Image aspect ratio should be 1:1" and silently fail to save
-   - Unlike logo/logo icon, the favicon input does NOT open a crop modal — the uploaded file must already be square
-   - ALWAYS canvas-pad the image to a 1:1 square before uploading, regardless of source dimensions
-   - Favicon upload silently fails when batched with logo/logo icon — always run as a separate JS call
-
-   **Canvas-pad + upload** (always use this, never upload raw logo to favicon input):
-
-   ```javascript
-   (async () => {
-     const logoUrl = '{logo_url}';
-     const response = await fetch(logoUrl);
-     const srcBlob = await response.blob();
-     const img = new Image();
-     const srcUrl = URL.createObjectURL(srcBlob);
-     await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = srcUrl; });
-     const canvas = document.createElement('canvas');
-     canvas.width = 512; canvas.height = 512;
-     const ctx = canvas.getContext('2d');
-     ctx.fillStyle = '#FFFFFF';
-     ctx.fillRect(0, 0, 512, 512);
-     const target = 480;
-     const scale = Math.min(target / img.width, target / img.height);
-     const w = img.width * scale, h = img.height * scale;
-     ctx.drawImage(img, (512 - w) / 2, (512 - h) / 2, w, h);
-     URL.revokeObjectURL(srcUrl);
-     const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
-     const file = new File([blob], 'brand-favicon.png', { type: 'image/png' });
-     const fileInputs = document.querySelectorAll('input[type="file"]');
-     const input = fileInputs[4];
-     if (!input) return 'Favicon input not found';
-     const dt = new DataTransfer();
-     dt.items.add(file);
-     input.files = dt.files;
-     input.dispatchEvent(new Event('change', { bubbles: true }));
-     return `Favicon uploaded (${blob.size} bytes, 512x512 PNG)`;
-   })()
-   ```
-
-   Wait 2 seconds, then **verify the favicon committed before saving**:
-
-   ```javascript
-   (() => {
-     const errs = Array.from(document.querySelectorAll('*')).filter(el =>
-       el.textContent === 'Image aspect ratio should be 1:1' && el.children.length === 0
-     );
-     return JSON.stringify({ aspectRatioErrors: errs.length });
-   })()
-   ```
-
-   If `aspectRatioErrors > 0`, re-run the canvas-pad script. Do not proceed to save until the error is gone.
-
-   If logo upload fails (CORS error, fetch blocked), skip it and note in the summary for manual upload.
-
-8. **Verify favicon aspect ratio**: Before saving, check for the "Image aspect ratio should be 1:1" error in the DOM. If present, re-run the canvas-pad upload for the favicon input.
-
-9. **Save changes (JavaScript)**: Click the save button via JS — no ref ID needed:
-
-   ```javascript
-   (() => {
-     const btn = Array.from(document.querySelectorAll('button'))
-       .find(b => b.textContent.trim() === 'Save changes');
-     if (!btn) return JSON.stringify({ saved: false, reason: 'button_not_found' });
-     if (btn.disabled) return JSON.stringify({ saved: false, reason: 'button_disabled' });
-     btn.click();
-     return JSON.stringify({ saved: true });
-   })()
-   ```
-
-   Wait for save, then verify with a screenshot:
-   ```
-   mcp__claude-in-chrome__computer(action: "wait", duration: 2, tabId: <tabId>)
-   mcp__claude-in-chrome__computer(action: "screenshot", tabId: <tabId>)
-   ```
-   The page should navigate to `/branding` (view mode) after a successful save.
-
-10. **Post-save verification** (REQUIRED — do not skip):
-
-    Reload the edit page and confirm all three assets (logo icon, logo, favicon) persisted:
-
-    ```
-    mcp__claude-in-chrome__navigate(url: "https://dashboard.workos.com/branding/edit?preview=authkit", tabId: <tabId>)
-    mcp__claude-in-chrome__computer(action: "wait", duration: 2, tabId: <tabId>)
-    ```
-
-    Then run this check:
-
-    ```javascript
-    (() => {
-      const fileInputs = document.querySelectorAll('input[type="file"]');
-      const check = (idx, label) => {
-        const input = fileInputs[idx];
-        if (!input) return { label, ok: false, reason: 'input missing' };
-        let container = input.parentElement;
-        for (let d = 0; d < 6 && container; d++) {
-          const img = container.querySelector && container.querySelector('img');
-          if (img && img.src && !img.src.includes('placeholder')) {
-            return { label, ok: true, src: img.src.slice(0, 60) };
-          }
-          container = container.parentElement;
-        }
-        return { label, ok: false, reason: 'no preview image' };
-      };
-      return JSON.stringify([
-        check(0, 'Logo icon'),
-        check(2, 'Logo'),
-        check(4, 'Favicon')
-      ]);
-    })()
-    ```
-
-    If any asset reports `ok: false`, re-upload that asset and save again.
-
-11. **If "Skip"**, proceed to Phase 7 with no dashboard changes.
-
-**Fallback** (Chrome tools unavailable): If `mcp__claude-in-chrome__tabs_context_mcp` fails, provide manual instructions:
-```
-Update AuthKit branding manually at: https://dashboard.workos.com/branding
-
-Click "Edit branding", then set:
-- Button background (light + dark): {brand_hex}
-- Links (light + dark): {brand_hex}
-- Upload logo: {logo_url}
-Click "Save changes" when done.
-```
-
-**Constraints**:
-- Do NOT change the organization/team name in WorkOS
-- Do NOT modify settings unrelated to visual branding (page settings, custom CSS, etc.)
-- Never block the rest of the workflow on this step — if anything fails, fall back to manual instructions
-- This step is best-effort — logo upload is optional, colors are the priority
+**No Chrome, no tab cleanup, no crop modals.** If you previously relied on
+`authkit-dashboard-branding.md`, that file is now a fallback only (e.g., if no demo
+secret key is configured) — prefer the API path.
 
 ## Phase 7: Cache Write
 
